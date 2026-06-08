@@ -1,4 +1,15 @@
 services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=trainapp
+      - POSTGRES_USER=trainuser
+      - POSTGRES_PASSWORD=trainpass
+    ports:
+      - "5432:5432"
+
   web:
     build: .
     ports:
@@ -8,5 +19,17 @@ services:
       - /app/.venv
     environment:
       - DEBUG=1
-      - DJANGO_SETTINGS_MODULE=config.settings
-    command: uv run manage.py runserver 0.0.0.0:8000
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DB_HOST=db
+      - DB_NAME=trainapp
+      - DB_USER=trainuser
+      - DB_PASS=trainpass
+      - DB_PORT=5432
+    depends_on:
+      - db
+    command: >
+      sh -c "until uv run manage.py migrate; do echo 'Waiting for db...'; sleep 2; done &&
+             uv run manage.py runserver 0.0.0.0:8000"
+
+volumes:
+  postgres_data:
