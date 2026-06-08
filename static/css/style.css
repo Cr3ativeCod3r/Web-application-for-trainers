@@ -1,0 +1,16 @@
+@theme {
+  --color-primary: #2ECC71;
+  --color-primary-hover: #27ae60;
+  --color-navy: #1A252F;
+  --color-navy-dark: #131b22;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  @apply bg-gray-50 text-gray-800 flex flex-col min-h-screen;
+}
+
+main {
+  @apply flex-1;
+}

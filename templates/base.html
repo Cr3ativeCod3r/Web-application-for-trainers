@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Znajdź Trenera{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    {% load static %}
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-primary: #2ECC71;
+            --color-primary-hover: #27ae60;
+            --color-navy: #1A252F;
+            --color-navy-dark: #131b22;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen font-sans">
+    {% include 'includes/header.html' %}
+
+    <main class="flex-1">
+        {% block content %}
+        {% endblock content %}
+    </main>
+
+    {% include 'includes/footer.html' %}
+    
+    <script src="{% static 'js/scripts.js' %}"></script>
+</body>
+</html>
