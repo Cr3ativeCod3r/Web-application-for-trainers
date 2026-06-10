@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import TrainerProfile
@@ -7,6 +7,8 @@ from accounts.models import TrainerStatus
 
 from django.db.models import Q
 from django.http import JsonResponse
+from django.core.mail import send_mail
+from django.conf import settings
 
 def home_search_view(request):
     """
@@ -305,3 +307,4 @@ def delete_account_view(request):
         else:
             messages.error(request, "Podane hasło jest nieprawidłowe. Konto nie zostało usunięte.")
     return redirect('trainers:account')
+
