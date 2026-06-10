@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}O nas | Coachly{% endblock %}
+
+{% block content %}
+<section class="py-16 md:py-24 bg-gray-50 flex-1">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-navy mb-4">Poznaj <span class="text-primary">Coachly</span></h1>
+            <p class="text-xl text-gray-500 max-w-2xl mx-auto">Zmieniamy sposób, w jaki trenujesz. Łączymy ambitnych sportowców z najlepszymi trenerami w Polsce.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 md:p-12 shadow-xl border border-gray-100">
+            <h2 class="text-2xl font-bold text-navy mb-4">Nasza misja</h2>
+            <p class="text-gray-600 mb-8 leading-relaxed">
+                Coachly powstało z prostej potrzeby - każdy zasługuje na profesjonalne wsparcie w dążeniu do sportowego celu. Wierzymy, że odpowiedni trener to klucz do sukcesu, niezależnie od tego czy przygotowujesz się do maratonu, chcesz poprawić technikę pływania, czy po prostu zacząć ćwiczyć na siłowni.
+            </p>
+
+            <h2 class="text-2xl font-bold text-navy mb-4">Dlaczego my?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-50 p-6 rounded-2xl">
+                    <div class="w-12 h-12 bg-primary/20 text-primary rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-navy mb-2">Zweryfikowani trenerzy</h3>
+                    <p class="text-sm text-gray-600">Wszyscy trenerzy na naszej platformie przechodzą proces weryfikacji. Masz pewność, że pracujesz ze specjalistami.</p>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-2xl">
+                    <div class="w-12 h-12 bg-primary/20 text-primary rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    <h3 class="font-bold text-navy mb-2">Proste wyszukiwanie</h3>
+                    <p class="text-sm text-gray-600">Dzięki naszemu silnikowi filtrującemu znajdziesz eksperta dokładnie z Twojej dziedziny, w wybranej lokalizacji.</p>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-bold text-navy mb-4">Dla trenerów</h2>
+            <p class="text-gray-600 leading-relaxed mb-6">
+                Coachly to także idealne miejsce dla specjalistów, którzy chcą dotrzeć do nowych podopiecznych. Oferujemy darmowy profil publiczny, świetne pozycjonowanie w sieci i przejrzysty panel.
+            </p>
+            
+            <a href="{% url 'trainers:home_search' %}" class="inline-block bg-navy hover:bg-navy-dark text-white font-semibold py-3 px-8 rounded-xl transition-colors">Znajdź trenera</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

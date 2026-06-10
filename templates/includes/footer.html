@@ -1,5 +1,12 @@
-<footer class="bg-navy-dark text-gray-400 text-center py-8 mt-auto">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p>&copy; 2026 TrainApp. Wszelkie prawa zastrzeżone.</p>
-    </div>
-</footer>
+<footer class="bg-navy text-white py-8 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-gray-400 text-sm">
+                &copy; {% now "Y" %} Coachly. Wszelkie prawa zastrzeżone.
+            </div>
+            <div class="flex gap-6 text-sm font-medium">
+                <a href="{% url 'pages:about' %}" class="hover:text-primary transition-colors">O nas</a>
+                <a href="{% url 'pages:contact' %}" class="hover:text-primary transition-colors">Kontakt</a>
+                <a href="{% url 'pages:privacy' %}" class="hover:text-primary transition-colors">Polityka prywatności</a>
+            </div>
+        </div>
+    </footer>

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}Polityka Prywatności | Coachly{% endblock %}
+
+{% block content %}
+<section class="py-16 md:py-24 bg-gray-50 flex-1">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-navy mb-4">Polityka Prywatności</h1>
+            <p class="text-lg text-gray-500">Dowiedz się, w jaki sposób dbamy o Twoje dane.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 md:p-12 shadow-xl border border-gray-100 space-y-8 text-gray-700 leading-relaxed">
+            
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">1. Postanowienia ogólne</h2>
+                <p>Niniejsza Polityka Prywatności określa zasady przetwarzania i ochrony danych osobowych przekazanych przez Użytkowników w związku z korzystaniem z platformy internetowej Coachly. Administrator dokłada wszelkich starań, aby chronić prywatność Użytkowników i zagwarantować im bezpieczeństwo przekazywanych informacji.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">2. Administrator danych</h2>
+                <p>Administratorem danych osobowych zawartych w serwisie jest właściciel platformy Coachly. Z administratorem można się skontaktować za pośrednictwem formularza w zakładce "Kontakt" lub pisząc bezpośrednio na nasz adres e-mail wsparcia technicznego.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">3. Cel i zakres zbierania danych</h2>
+                <p>Dane osobowe zbierane są w celu:</p>
+                <ul class="list-disc pl-5 mt-2 space-y-1">
+                    <li>Rejestracji i obsługi konta użytkownika/trenera.</li>
+                    <li>Umożliwienia kontaktu pomiędzy podopiecznym a trenerem.</li>
+                    <li>Odpowiadania na zapytania kierowane za pośrednictwem formularza kontaktowego.</li>
+                    <li>Prezentacji profili publicznych w wyszukiwarce.</li>
+                </ul>
+                <p class="mt-2">Zbieramy m.in.: adres e-mail, imię, numer telefonu (opcjonalnie) oraz dane związane z prowadzonymi treningami (w przypadku trenerów).</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">4. Prawa użytkowników</h2>
+                <p>Każdy Użytkownik ma prawo do wglądu w swoje dane, ich poprawiania, aktualizacji oraz żądania ich całkowitego usunięcia (tzw. "prawo do bycia zapomnianym"). Usunięcie konta jest dostępne z poziomu ustawień profilu w aplikacji.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">5. Pliki Cookies (Ciasteczka)</h2>
+                <p>Nasz serwis korzysta z plików cookies w celu ułatwienia Użytkownikom korzystania z witryny, do celów statystycznych oraz w celu optymalizacji i sprawnego działania mechanizmów nawigacji i wyszukiwania. Użytkownik może samodzielnie zmienić ustawienia dotyczące cookies w swojej przeglądarce internetowej.</p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-navy mb-3">6. Postanowienia końcowe</h2>
+                <p>Zastrzegamy sobie prawo do zmian w polityce prywatności, na które może wpłynąć rozwój technologii internetowej, ewentualne zmiany prawa w zakresie ochrony danych osobowych oraz rozwój naszej platformy. O wszelkich zmianach będziemy informować w sposób widoczny i zrozumiały.</p>
+                <p class="mt-2 text-sm text-gray-500">Ostatnia aktualizacja: {% now "d.m.Y" %}</p>
+            </div>
+
+        </div>
+    </div>
+</section>
+{% endblock %}
