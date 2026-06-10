@@ -7,4 +7,4 @@ http://{{ domain }}{% url 'accounts:activate' uidb64=uid token=token %}
 Jeśli to nie Ty zakładałeś konto, po prostu zignoruj tę wiadomość.
 
 Pozdrawiamy,
-Zespół TrainApp
+Zespół Coachly

@@ -31,10 +31,12 @@ class TrainerLoginView(LoginView):
             self.request.session.modified = True
         return super().form_valid(form)
 
+from django.views.generic import View, TemplateView
+
 class TrainerRegisterView(CreateView):
     template_name = 'accounts/register.html'
     form_class = TrainerRegistrationForm
-    success_url = reverse_lazy('accounts:login')
+    success_url = reverse_lazy('accounts:registration_success')
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -48,17 +50,25 @@ class TrainerRegisterView(CreateView):
         
         current_site = get_current_site(self.request)
         subject = 'Aktywuj swoje konto trenera'
-        message = render_to_string('accounts/activation_email.html', {
+        message = render_to_string('emails/accounts/activation.txt', {
+            'user': user,
+            'domain': current_site.domain,
+            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+            'token': default_token_generator.make_token(user),
+        })
+        html_message = render_to_string('emails/accounts/activation.html', {
             'user': user,
             'domain': current_site.domain,
             'uid': urlsafe_base64_encode(force_bytes(user.pk)),
             'token': default_token_generator.make_token(user),
         })
         from django.conf import settings
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_message)
         
-        messages.success(self.request, 'Konto zostało utworzone. Sprawdź swoją skrzynkę e-mail, aby aktywować konto.')
         return redirect(self.success_url)
+
+class RegistrationSuccessView(TemplateView):
+    template_name = 'accounts/registration_success.html'
 
 class ActivateAccountView(View):
     def get(self, request, uidb64, token):

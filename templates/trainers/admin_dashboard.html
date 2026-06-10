@@ -5,13 +5,7 @@
     <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-navy mb-8">Zarządzaj trenerami</h2>
         
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mb-6 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200{% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
+
 
         <!-- Tabs -->
         <div class="flex border-b border-gray-200 mb-8 overflow-x-auto">
