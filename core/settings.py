@@ -20,9 +20,9 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 LOCAL_APPS = [
-    'accounts',
-    'trainers',
-    'pages',
+    'apps.accounts',
+    'apps.trainers',
+    'apps.pages',
 ]
 
 INSTALLED_APPS = [

@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .models import TrainerProfile
 from .forms import TrainerApplicationForm
-from accounts.models import TrainerStatus
+from apps.accounts.models import TrainerStatus
 
 from django.db.models import Q
 from django.http import JsonResponse

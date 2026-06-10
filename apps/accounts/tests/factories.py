@@ -1,6 +1,6 @@
 import factory
 from faker import Faker
-from accounts.models import CustomUser, TrainerStatus
+from apps.accounts.models import CustomUser, TrainerStatus
 
 fake = Faker('pl_PL')
 

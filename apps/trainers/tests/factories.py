@@ -3,8 +3,8 @@ import random
 from django.utils.text import slugify
 from faker import Faker
 
-from trainers.models import TrainerProfile
-from accounts.tests.factories import UserFactory
+from apps.trainers.models import TrainerProfile
+from apps.accounts.tests.factories import UserFactory
 
 fake = Faker('pl_PL')
 

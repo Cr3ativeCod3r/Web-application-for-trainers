@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from trainers.tests.factories import TrainerProfileFactory
+from apps.trainers.tests.factories import TrainerProfileFactory
 
 class Command(BaseCommand):
     help = 'Tworzy fałszywych użytkowników ze statusem PENDING_APPLICATION za pomocą factory_boy'
