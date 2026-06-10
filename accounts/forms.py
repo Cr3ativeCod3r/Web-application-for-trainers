@@ -23,7 +23,7 @@ class TrainerRegistrationForm(forms.ModelForm):
 
 class CustomAuthenticationForm(AuthenticationForm):
     username = forms.EmailField(
-        label='Adres e-mail',
+        label="Adres e-mail",
         widget=forms.EmailInput(attrs={'autofocus': True, 'placeholder': 'Twój e-mail'})
     )
     remember_me = forms.BooleanField(required=False, label="Zapamiętaj mnie")
@@ -43,12 +43,12 @@ class SinglePasswordSetForm(SetPasswordForm):
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, *args, **kwargs)
-        # Usunięcie drugiego pola potwierdzającego
+        # Remove the second confirmation field
         if 'new_password2' in self.fields:
             del self.fields['new_password2']
 
     def clean(self):
-        # Ominięcie walidacji porównującej dwa hasła z bazowej klasy
+        # Skip validation comparing two passwords from the base class
         password = self.cleaned_data.get('new_password1')
         return self.cleaned_data
 

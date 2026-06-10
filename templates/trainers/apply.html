@@ -1,11 +1,10 @@
 {% extends 'base.html' %}
-{% load i18n %}
 
 {% block content %}
 <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1">
     <div class="max-w-3xl mx-auto bg-white p-10 rounded-2xl shadow-xl">
-        <h2 class="text-3xl font-bold text-navy mb-2">{% trans "Złóż wniosek o bycie trenerem" %}</h2>
-        <p class="text-gray-600 mb-8">{% trans "Wypełnij poniższy formularz, aby utworzyć swój profil trenerski w Coachly." %}</p>
+        <h2 class="text-3xl font-bold text-navy mb-2">Złóż wniosek o bycie trenerem</h2>
+        <p class="text-gray-600 mb-8">Wypełnij poniższy formularz, aby utworzyć swój profil trenerski w Coachly.</p>
         
         <form action="{% url 'trainers:apply' %}" method="POST" enctype="multipart/form-data" class="space-y-6">
             {% csrf_token %}
@@ -35,7 +34,7 @@
 
             <div class="pt-6 border-t border-gray-100">
                 <button type="submit" class="w-full md:w-auto px-8 py-3 bg-primary hover:bg-primary-hover text-navy font-bold rounded-lg shadow-md transition-all hover:-translate-y-0.5">
-                    {% trans "Wyślij wniosek" %}
+                    Wyślij wniosek
                 </button>
             </div>
         </form>

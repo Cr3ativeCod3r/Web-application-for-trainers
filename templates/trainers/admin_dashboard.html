@@ -16,13 +16,16 @@
             <button id="tab-active" class="px-6 py-3 font-semibold text-sm transition-colors text-gray-500 hover:text-navy border-b-2 border-transparent outline-none whitespace-nowrap" onclick="switchTab('active')">
                 Aktywni trenerzy ({{ active_profiles.paginator.count }})
             </button>
+            <button id="tab-banned" class="px-6 py-3 font-semibold text-sm transition-colors text-gray-500 hover:text-navy border-b-2 border-transparent outline-none whitespace-nowrap" onclick="switchTab('banned')">
+                Zawieszeni ({{ banned_profiles.paginator.count }})
+            </button>
         </div>
 
         <!-- Pending Content -->
         <div id="content-pending" class="space-y-6 block tab-content">
             <form method="GET" class="mb-6 flex gap-2">
                 <input type="hidden" name="tab" value="pending">
-                <input type="text" name="q_pending" value="{{ q_pending }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <input type="text" name="q_pending" value="{{ q_pending }}" placeholder="Szukaj po e-mailu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
                 <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
             </form>
 
@@ -83,7 +86,7 @@
         <div id="content-updates" class="space-y-6 hidden tab-content">
             <form method="GET" class="mb-6 flex gap-2">
                 <input type="hidden" name="tab" value="updates">
-                <input type="text" name="q_updates" value="{{ q_updates }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <input type="text" name="q_updates" value="{{ q_updates }}" placeholder="Szukaj po e-mailu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
                 <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
             </form>
 
@@ -158,7 +161,7 @@
         <div id="content-active" class="space-y-6 hidden tab-content">
             <form method="GET" class="mb-6 flex gap-2">
                 <input type="hidden" name="tab" value="active">
-                <input type="text" name="q_active" value="{{ q_active }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <input type="text" name="q_active" value="{{ q_active }}" placeholder="Szukaj po e-mailu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
                 <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
             </form>
 
@@ -182,9 +185,25 @@
                                 <p class="pt-2 text-xs text-gray-400">Dołączył(a): {{ profile.created_at|date:"d.m.Y" }}</p>
                             </div>
                             
-                            <a href="{% url 'trainers:public_profile' profile.username %}" target="_blank" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors text-center block border border-gray-300">
-                                Zobacz profil publiczny
-                            </a>
+                            <div class="mt-4 flex flex-col gap-2">
+                                <a href="{% url 'trainers:public_profile' profile.username %}" target="_blank" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors text-center block border border-gray-300">
+                                    Zobacz profil publiczny
+                                </a>
+                                <div class="flex gap-2">
+                                    <form action="{% url 'trainers:ban_trainer' profile.id %}" method="POST" class="flex-1" onsubmit="return confirm('Czy na pewno chcesz zawiesić konto tego trenera?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold py-2 px-4 rounded-lg transition-colors text-center border border-yellow-300 text-sm">
+                                            Zawieś konto
+                                        </button>
+                                    </form>
+                                    <form action="{% url 'trainers:delete_trainer' profile.id %}" method="POST" class="flex-1" onsubmit="return confirm('Czy na pewno chcesz trwale usunąć to konto? Tej operacji nie można cofnąć.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-4 rounded-lg transition-colors text-center border border-red-300 text-sm">
+                                            Usuń trwale
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -209,12 +228,79 @@
             {% endif %}
         </div>
 
+
+        <!-- Banned Content -->
+        <div id="content-banned" class="space-y-6 hidden tab-content">
+            <form method="GET" class="mb-6 flex gap-2">
+                <input type="hidden" name="tab" value="banned">
+                <input type="text" name="q_banned" value="{{ q_banned }}" placeholder="Szukaj po e-mailu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
+            </form>
+
+            {% if banned_profiles %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for profile in banned_profiles %}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-navy">{{ profile.full_name }}</h3>
+                                    <p class="text-sm font-medium text-primary">{{ profile.sport }}</p>
+                                </div>
+                                <span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">Zawieszony</span>
+                            </div>
+                            <div class="space-y-2 text-sm text-gray-600 mb-6">
+                                <p><strong class="text-gray-800">Email:</strong> {{ profile.contact_email }}</p>
+                                <p><strong class="text-gray-800">Tel:</strong> {{ profile.contact_phone }}</p>
+                                <p><strong class="text-gray-800">Lokalizacja:</strong> {{ profile.location }}</p>
+                            </div>
+                            
+                            <div class="mt-4 flex flex-col gap-2">
+                                <a href="{% url 'trainers:public_profile' profile.username %}" target="_blank" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors text-center block border border-gray-300">
+                                    Zobacz profil publiczny
+                                </a>
+                                <div class="flex gap-2">
+                                    <form action="{% url 'trainers:unban_trainer' profile.id %}" method="POST" class="flex-1" onsubmit="return confirm('Czy na pewno chcesz odblokować konto tego trenera?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full bg-green-100 hover:bg-green-200 text-green-800 font-bold py-2 px-4 rounded-lg transition-colors text-center border border-green-300 text-sm">
+                                            Odwieś konto
+                                        </button>
+                                    </form>
+                                    <form action="{% url 'trainers:delete_trainer' profile.id %}" method="POST" class="flex-1" onsubmit="return confirm('Czy na pewno chcesz trwale usunąć to konto? Tej operacji nie można cofnąć.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-4 rounded-lg transition-colors text-center border border-red-300 text-sm">
+                                            Usuń trwale
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-8 flex justify-center gap-2">
+                    {% if banned_profiles.has_previous %}
+                        <a href="?tab=banned&p_banned={{ banned_profiles.previous_page_number }}&q_banned={{ q_banned }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Poprzednia</a>
+                    {% endif %}
+                    <span class="px-4 py-2 text-gray-600">Strona {{ banned_profiles.number }} z {{ banned_profiles.paginator.num_pages }}</span>
+                    {% if banned_profiles.has_next %}
+                        <a href="?tab=banned&p_banned={{ banned_profiles.next_page_number }}&q_banned={{ q_banned }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Następna</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                    <p class="text-gray-500">Brak zawieszonych trenerów.</p>
+                </div>
+            {% endif %}
+        </div>
+
     </div>
 </section>
 
 <script>
     function switchTab(tab) {
-        const tabs = ['pending', 'updates', 'active'];
+        const tabs = ['pending', 'updates', 'active', 'banned'];
         
         // Zapisz aktywną zakładkę w sessionStorage (można też w URL jak w linkach paginacji)
         sessionStorage.setItem('adminActiveTab', tab);

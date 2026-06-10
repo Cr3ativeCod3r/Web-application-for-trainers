@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load i18n %}
 
 {% block content %}
 <section class="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1 flex flex-col justify-center items-center gap-8">
@@ -7,10 +6,10 @@
         
         <div class="text-center">
             <h2 class="mt-2 text-3xl font-extrabold text-navy">
-                {% trans "Edycja profilu trenera" %}
+                Edycja profilu trenera
             </h2>
             <p class="mt-2 text-sm text-gray-500">
-                {% trans "Wprowadź zmiany w swoim profilu. Po zapisaniu, zmiany zostaną przesłane do weryfikacji przez administratora. Twój stary profil będzie widoczny do czasu zatwierdzenia." %}
+                Wprowadź zmiany w swoim profilu. Po zapisaniu, zmiany zostaną przesłane do weryfikacji przez administratora. Twój stary profil będzie widoczny do czasu zatwierdzenia.
             </p>
         </div>
 
@@ -26,7 +25,7 @@
                     </div>
                     <div class="ml-3">
                         <p class="text-sm text-yellow-700 font-medium">
-                            {% trans "Masz oczekującą aktualizację profilu, która czeka na zatwierdzenie. Widzisz poniżej dane wysłane do akceptacji. Możesz je nadal nadpisać." %}
+                            Masz oczekującą aktualizację profilu, która czeka na zatwierdzenie. Widzisz poniżej dane wysłane do akceptacji. Możesz je nadal nadpisać.
                         </p>
                     </div>
                 </div>
@@ -55,38 +54,37 @@
 
             <div class="pt-6">
                 <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-navy bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
-                    {% trans "Zapisz zmiany (wyślij do weryfikacji)" %}
+                    Zapisz zmiany (wyślij do weryfikacji)
                 </button>
             </div>
         </form>
 
     </div>
 
-    <!-- Sekcja usunięcia konta -->
+    <!-- Delete account section -->
     <div class="max-w-3xl w-full bg-red-50 rounded-3xl shadow-sm border border-red-100 overflow-hidden">
         <button type="button" class="w-full text-left p-8 md:px-12 md:py-8 focus:outline-none flex justify-between items-center group transition-colors hover:bg-red-100" onclick="document.getElementById('delete-account-form').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
             <div>
-                <h3 class="text-2xl font-bold text-red-700 mb-1">{% trans "Usuń konto" %}</h3>
-                <p class="text-sm text-red-600">{% trans "Rozwiń tę sekcję, jeśli chcesz trwale usunąć swoje konto z serwisu." %}</p>
+                <h3 class="text-2xl font-bold text-red-700 mb-1">Usuń konto</h3>
+                <p class="text-sm text-red-600">Rozwiń tę sekcję, jeśli chcesz trwale usunąć swoje konto z serwisu.</p>
             </div>
             <svg class="w-6 h-6 text-red-500 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         
         <div id="delete-account-form" class="hidden px-8 pb-8 md:px-12 md:pb-10 pt-0">
             <div class="bg-white p-6 md:p-8 rounded-2xl border border-red-200 mt-2 shadow-inner">
-                <h4 class="font-bold text-red-700 mb-2">{% trans "Strefa niebezpieczna" %}</h4>
-                <p class="text-sm text-red-600 mb-6">{% trans "Trwałe usunięcie konta oznacza bezpowrotną utratę wszystkich Twoich danych, wiadomości, zdjęć oraz wniosków. Ta operacja jest w 100% nieodwracalna." %}</p>
-                {% trans "Czy na pewno chcesz bezpowrotnie usunąć swoje konto?" as confirm_msg %}
-                <form action="{% url 'trainers:delete_account' %}" method="POST" class="space-y-5" onsubmit="return confirm('{{ confirm_msg|escapejs }}');">
+                <h4 class="font-bold text-red-700 mb-2">Strefa niebezpieczna</h4>
+                <p class="text-sm text-red-600 mb-6">Trwałe usunięcie konta oznacza bezpowrotną utratę wszystkich Twoich danych, wiadomości, zdjęć oraz wniosków. Ta operacja jest w 100% nieodwracalna.</p>
+                <form action="{% url 'trainers:delete_account' %}" method="POST" class="space-y-5" onsubmit="return confirm('Czy na pewno chcesz bezpowrotnie usunąć swoje konto?');">
                     {% csrf_token %}
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-                            {% trans "Wprowadź swoje obecne hasło, aby potwierdzić tożsamość:" %}
+                            Wprowadź swoje obecne hasło, aby potwierdzić tożsamość:
                         </label>
-                        <input type="password" name="password" id="password" required class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-800 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all bg-gray-50" placeholder="{% trans 'Twoje hasło' %}">
+                        <input type="password" name="password" id="password" required class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-800 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all bg-gray-50" placeholder="Twoje hasło">
                     </div>
                     <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors uppercase tracking-wider">
-                        {% trans "Trwale usuń moje konto" %}
+                        Trwale usuń moje konto
                     </button>
                 </form>
             </div>
