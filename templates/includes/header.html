@@ -1,4 +1,4 @@
-{% load static %}
+{% load static i18n %}
 <header id="main-header" class="bg-navy sticky top-0 z-50 shadow-md py-2 transition-transform duration-300 transform translate-y-0">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div class="flex-shrink-0">
@@ -7,22 +7,6 @@
             </a>
         </div>
         <nav class="flex items-center space-x-4">
-            {% load i18n %}
-            <form action="{% url 'set_language' %}" method="post" class="inline-block mr-2">
-                {% csrf_token %}
-                <input name="next" type="hidden" value="{{ request.get_full_path }}">
-                <select name="language" onchange="this.form.submit()" class="bg-navy text-white text-sm border-gray-600 rounded focus:ring-primary focus:border-primary cursor-pointer outline-none px-2 py-1">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% get_available_languages as LANGUAGES %}
-                    {% get_language_info_list for LANGUAGES as languages %}
-                    {% for language in languages %}
-                        <option value="{{ language.code }}" {% if language.code == LANGUAGE_CODE %}selected{% endif %}>
-                            {{ language.code|upper }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
-            
             {% if user.is_authenticated %}
                 {% if user.is_superuser %}
                     <a href="{% url 'trainers:admin_dashboard' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hidden md:inline-block">
@@ -80,6 +64,21 @@
                     {% trans "Dla trenerów" %}
                 </a>
             {% endif %}
+            
+            <form action="{% url 'set_language' %}" method="post" class="inline-block ml-4">
+                {% csrf_token %}
+                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                <select name="language" onchange="this.form.submit()" class="bg-navy text-white text-sm border-gray-600 rounded focus:ring-primary focus:border-primary cursor-pointer outline-none px-2 py-1">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% get_available_languages as LANGUAGES %}
+                    {% get_language_info_list for LANGUAGES as languages %}
+                    {% for language in languages %}
+                        <option value="{{ language.code }}" {% if language.code == LANGUAGE_CODE %}selected{% endif %}>
+                            {{ language.code|upper }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
         </nav>
     </div>
 </header>
