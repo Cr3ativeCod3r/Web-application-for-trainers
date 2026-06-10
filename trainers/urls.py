@@ -5,6 +5,7 @@ app_name = 'trainers'
 
 urlpatterns = [
     path('', views.home_search_view, name='home_search'),
+    path('api/autocomplete/', views.autocomplete_view, name='autocomplete'),
     path('aplikuj/', views.apply_trainer_view, name='apply'),
     path('zarzadzaj/', views.admin_dashboard_view, name='admin_dashboard'),
     path('zarzadzaj/zatwierdz/<int:profile_id>/', views.approve_trainer_view, name='approve_trainer'),

@@ -5,11 +5,55 @@ from .models import TrainerProfile
 from .forms import TrainerApplicationForm
 from accounts.models import TrainerStatus
 
+from django.db.models import Q
+from django.http import JsonResponse
+
 def home_search_view(request):
     """
-    Mockup view for the home search page.
+    View for the home search page with filtering capabilities.
     """
-    return render(request, 'trainers/home_search.html')
+    query_sport = request.GET.get('sport', '').strip()
+    query_location = request.GET.get('location', '').strip()
+    
+    trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+    
+    if query_sport:
+        trainers = trainers.filter(sport__icontains=query_sport)
+    if query_location:
+        trainers = trainers.filter(location__icontains=query_location)
+        
+    trainers = trainers.order_by('-created_at')[:12]
+    
+    return render(request, 'trainers/home_search.html', {
+        'trainers': trainers,
+        'query_sport': query_sport,
+        'query_location': query_location
+    })
+
+def autocomplete_view(request):
+    """
+    Returns JSON suggestions for sports and locations.
+    """
+    q_type = request.GET.get('type', '')
+    q = request.GET.get('q', '').strip().lower()
+    
+    if not q or len(q) < 1:
+        return JsonResponse({'results': []})
+        
+    approved_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+    results = set()
+    
+    if q_type == 'sport':
+        for profile in approved_profiles.filter(sport__icontains=q):
+            for sport in profile.sports_list:
+                if q in sport.lower():
+                    results.add(sport)
+    elif q_type == 'location':
+        locations = approved_profiles.filter(location__icontains=q).values_list('location', flat=True).distinct()
+        for loc in locations:
+            results.add(loc)
+            
+    return JsonResponse({'results': sorted(list(results))[:10]})
 
 @login_required
 def apply_trainer_view(request):

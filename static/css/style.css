@@ -14,3 +14,7 @@ body {
 main {
   @apply flex-1;
 }
+
+button{
+  cursor: pointer;
+}
