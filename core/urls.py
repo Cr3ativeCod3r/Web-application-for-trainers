@@ -12,3 +12,9 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+    # Dodatkowa ścieżka do testowania widoku 404
+    from django.views.defaults import page_not_found
+    urlpatterns += [
+        path('404/', page_not_found, kwargs={'exception': Exception("Test 404")}),
+    ]
