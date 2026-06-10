@@ -8,56 +8,22 @@ The structure of the application is designed to be modular and scalable:
 
 ```text
 my_trainers_project/
-│
-├── manage.py                   # Main project management file
-├── .env                        # Environment variables (database passwords, SECRET_KEY, DEBUG mode)
-│
-├── core/                       # Main project configuration folder (formerly 'config')
-│   ├── __init__.py
-│   ├── asgi.py
-│   ├── settings.py             # Main project settings
-│   ├── urls.py                 # Main URL routing (including URLs from other apps)
-│   └── wsgi.py
-│
-├── accounts/                   # APP 1: User management and authentication
-│   ├── migrations/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── forms.py                # Login and registration forms
-│   ├── models.py               # Custom user model (e.g., CustomUser)
-│   ├── urls.py                 # URLs for login, logout, password reset
-│   └── views.py                # Authentication views
-│
-├── trainers/                   # APP 2: Trainer profiles, directory, and search engine
-│   ├── migrations/
-│   ├── __init__.py
-│   ├── admin.py                # Approving trainer applications via the Django admin panel
-│   ├── apps.py
-│   ├── forms.py                # Application form, photo upload forms
-│   ├── models.py               # Models: TrainerProfile, TrainerPhoto (limit up to 8 photos)
-│   ├── urls.py                 # URLs for search, trainer details, application page
-│   └── views.py                # Views: Home (Search), Trainer Detail, Apply Form
-│
+├── core/                       # Main project configuration folder (settings, main urls)
+├── accounts/                   # APP 1: User management and authentication logic
+│   └── migrations/             # Database migrations for accounts
+├── trainers/                   # APP 2: Trainer profiles, directory, and search engine logic
+│   └── migrations/             # Database migrations for trainers
+├── pages/                      # APP 3: Static pages logic (About, Contact, Privacy Policy)
 ├── templates/                  # Global folder for HTML templates
-│   ├── base.html               # Main template (header, footer, navigation)
-│   ├── accounts/
-│   │   ├── login.html
-│   │   └── register.html
-│   └── trainers/
-│       ├── home_search.html    # Homepage with filters (like OLX)
-│       ├── trainer_detail.html # Trainer's public profile page
-│       └── trainer_apply.html  # Form for trainers to submit their details
-│
+│   ├── accounts/               # Templates for authentication (login, register)
+│   ├── trainers/               # Templates for trainer profiles, dashboards and search
+│   ├── pages/                  # Templates for static pages
+│   ├── emails/                 # Templates for email messages
+│   └── includes/               # Reusable template components (header, footer)
 ├── static/                     # Project static files
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   └── scripts.js
-│   └── img/                    # Static graphics (logo, backgrounds)
-│
+│   └── css/                    # Custom CSS styles (Tailwind config output)
 └── media/                      # User-uploaded files (requires configuration in settings.py)
-    └── trainer_photos/         # Trainer photos will be stored here
+    └── profile_pics/           # Trainer profile pictures
 ```
 
 ### Key Modules
