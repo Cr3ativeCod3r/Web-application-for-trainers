@@ -8,13 +8,13 @@ urlpatterns = [
     path('trenerzy/', include('accounts.urls')),
     path('', include('pages.urls')),
     path('', include('trainers.urls')),
-    path('i18n/', include('django.conf.urls.i18n')),
+
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     
-    # Dodatkowa ścieżka do testowania widoku 404
+    # Additional path to test 404 view
     from django.views.defaults import page_not_found
     urlpatterns += [
         path('404/', page_not_found, kwargs={'exception': Exception("Test 404")}),

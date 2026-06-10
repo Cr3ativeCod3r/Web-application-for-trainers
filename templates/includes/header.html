@@ -1,4 +1,4 @@
-{% load static i18n %}
+{% load static %}
 <header id="main-header" class="bg-navy sticky top-0 z-50 shadow-md py-2 transition-transform duration-300 transform translate-y-0">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div class="flex-shrink-0">
@@ -10,14 +10,14 @@
             {% if user.is_authenticated %}
                 {% if user.is_superuser %}
                     <a href="{% url 'trainers:admin_dashboard' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hidden md:inline-block">
-                        {% trans "Zarządzaj trenerami" %}
+                        Zarządzaj trenerami
                     </a>
                 {% elif user.status == 'REGISTERED' %}
                     <a href="{% url 'trainers:apply' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hidden md:inline-block">
-                        {% trans "Złóż wniosek o bycie trenerem" %}
+                        Złóż wniosek o bycie trenerem
                     </a>
                 {% elif user.status == 'PENDING_APPLICATION' %}
-                    <span class="text-gray-400 text-sm border border-gray-600 px-3 py-1.5 rounded-lg hidden md:inline-block">{% trans "Wniosek w weryfikacji" %}</span>
+                    <span class="text-gray-400 text-sm border border-gray-600 px-3 py-1.5 rounded-lg hidden md:inline-block">Wniosek w weryfikacji</span>
                 {% endif %}
                 
                 <div class="relative group ml-2 md:ml-4 z-50">
@@ -46,43 +46,30 @@
                             {% if user.status == 'APPROVED_TRAINER' %}
                             <a href="{% url 'trainers:public_profile' user.trainer_profile.username %}" class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                 <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                {% trans "Zobacz profil" %}
+                                Zobacz profil
                             </a>
                             {% endif %}
                             <a href="{% url 'trainers:account' %}" class="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                 <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                {% trans "Edytuj profil" %}
+                                Edytuj profil
                             </a>
                         {% endif %}
                         <form action="{% url 'accounts:logout' %}" method="post" class="block w-full">
                             {% csrf_token %}
                             <button type="submit" class="flex items-center w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-50 mt-1 pt-2">
                                 <svg class="w-4 h-4 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                                {% trans "Wyloguj" %}
+                                Wyloguj
                             </button>
                         </form>
                     </div>
                 </div>
             {% else %}
                 <a href="{% url 'accounts:login' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-6 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
-                    {% trans "Dla trenerów" %}
+                    Dla trenerów
                 </a>
             {% endif %}
             
-            <form action="{% url 'set_language' %}" method="post" class="inline-block ml-4">
-                {% csrf_token %}
-                <input name="next" type="hidden" value="{{ request.get_full_path }}">
-                <select name="language" onchange="this.form.submit()" class="bg-navy text-white text-sm border-gray-600 rounded focus:ring-primary focus:border-primary cursor-pointer outline-none px-2 py-1">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% get_available_languages as LANGUAGES %}
-                    {% get_language_info_list for LANGUAGES as languages %}
-                    {% for language in languages %}
-                        <option value="{{ language.code }}" {% if language.code == LANGUAGE_CODE %}selected{% endif %}>
-                            {{ language.code|upper }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
+
         </nav>
     </div>
 </header>

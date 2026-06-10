@@ -14,12 +14,16 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('status', TrainerStatus.ADMIN)
+        extra_fields.setdefault('is_active', True)
         return self.create_user(email, password, **extra_fields)
 
 class TrainerStatus(models.TextChoices):
     REGISTERED = 'REGISTERED', 'Zarejestrowany'
     PENDING_APPLICATION = 'PENDING_APPLICATION', 'Złożono wniosek'
     APPROVED_TRAINER = 'APPROVED_TRAINER', 'Trener'
+    BANNED = 'BANNED', 'Zbanowany'
+    ADMIN = 'ADMIN', 'Administrator'
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, verbose_name="Adres e-mail")

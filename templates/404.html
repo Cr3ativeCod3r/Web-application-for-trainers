@@ -1,8 +1,7 @@
 {% extends 'base.html' %}
-{% load i18n %}
 {% load static %}
 
-{% block title %}404 - {% trans "Nie znaleziono strony" %} | Coachly{% endblock %}
+{% block title %}404 - Nie znaleziono strony | Coachly{% endblock %}
 
 {% block content %}
 <section class="min-h-[80vh] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -19,20 +18,20 @@
             </div>
         </div>
 
-        <h1 class="text-4xl md:text-5xl font-extrabold text-navy mb-4 tracking-tight">{% trans "Ups! Zgubiliśmy rytm." %}</h1>
+        <h1 class="text-4xl md:text-5xl font-extrabold text-navy mb-4 tracking-tight">Ups! Zgubiliśmy rytm.</h1>
         <p class="text-lg md:text-xl text-gray-500 mb-10 leading-relaxed max-w-md mx-auto">
-            {% trans "Wygląda na to, że strona, której szukasz nie istnieje, lub została przeniesiona." %}
+            Wygląda na to, że strona, której szukasz nie istnieje, lub została przeniesiona.
         </p>
 
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="{% url 'trainers:home_search' %}" class="bg-primary hover:bg-primary-hover text-navy font-bold text-lg px-8 py-3.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-primary/40 hover:-translate-y-1 flex items-center justify-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                {% trans "Wróć do strony głównej" %}
+                Wróć do strony głównej
             </a>
             
             <button onclick="window.history.back()" class="bg-white hover:bg-gray-50 text-navy font-semibold text-lg px-8 py-3.5 rounded-xl border border-gray-200 transition-all duration-300 shadow-sm hover:shadow-md flex items-center justify-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                {% trans "Cofnij" %}
+                Cofnij
             </button>
         </div>
     </div>

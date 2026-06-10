@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from django.urls import reverse
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .models import TrainerProfile
 from .forms import TrainerApplicationForm
@@ -158,37 +159,46 @@ def admin_dashboard_view(request):
     q_pending = request.GET.get('q_pending', '').strip()
     q_active = request.GET.get('q_active', '').strip()
     q_updates = request.GET.get('q_updates', '').strip()
+    q_banned = request.GET.get('q_banned', '').strip()
 
     pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION)
     active_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+    banned_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.BANNED)
     pending_updates = TrainerProfileUpdate.objects.all()
 
     if q_pending:
-        pending_profiles = pending_profiles.filter(full_name__icontains=q_pending)
+        pending_profiles = pending_profiles.filter(contact_email__icontains=q_pending)
     if q_active:
-        active_profiles = active_profiles.filter(full_name__icontains=q_active)
+        active_profiles = active_profiles.filter(contact_email__icontains=q_active)
     if q_updates:
-        pending_updates = pending_updates.filter(profile__full_name__icontains=q_updates)
+        pending_updates = pending_updates.filter(profile__contact_email__icontains=q_updates)
+    if q_banned:
+        banned_profiles = banned_profiles.filter(contact_email__icontains=q_banned)
 
     pending_profiles = pending_profiles.order_by('-created_at')
     active_profiles = active_profiles.order_by('-created_at')
     pending_updates = pending_updates.order_by('-created_at')
+    banned_profiles = banned_profiles.order_by('-created_at')
 
     paginator_pending = Paginator(pending_profiles, 12)
     paginator_active = Paginator(active_profiles, 12)
     paginator_updates = Paginator(pending_updates, 12)
+    paginator_banned = Paginator(banned_profiles, 12)
 
     page_pending = request.GET.get('p_pending')
     page_active = request.GET.get('p_active')
     page_updates = request.GET.get('p_updates')
+    page_banned = request.GET.get('p_banned')
 
     context = {
         'pending_profiles': paginator_pending.get_page(page_pending),
         'active_profiles': paginator_active.get_page(page_active),
         'pending_updates': paginator_updates.get_page(page_updates),
+        'banned_profiles': paginator_banned.get_page(page_banned),
         'q_pending': q_pending,
         'q_active': q_active,
         'q_updates': q_updates,
+        'q_banned': q_banned,
     }
     return render(request, 'trainers/admin_dashboard.html', context)
 
@@ -204,7 +214,7 @@ def approve_trainer_view(request, profile_id):
 def approve_update_view(request, update_id):
     update_obj = TrainerProfileUpdate.objects.get(id=update_id)
     profile = update_obj.profile
-    # Kopiuj pola
+    # Copy fields
     profile.full_name = update_obj.full_name
     profile.sport = update_obj.sport
     profile.location = update_obj.location
@@ -215,7 +225,7 @@ def approve_update_view(request, update_id):
     profile.contact_email = update_obj.contact_email
     profile.contact_phone = update_obj.contact_phone
     if update_obj.profile_picture:
-        # Usuń stare zdjęcie profilowe z dysku, jeśli wgrywane jest nowe
+        # Delete old profile picture from disk if a new one is uploaded
         import os
         if profile.profile_picture and profile.profile_picture != update_obj.profile_picture:
             if os.path.isfile(profile.profile_picture.path):
@@ -237,7 +247,7 @@ def reject_update_view(request, update_id):
     update_obj = TrainerProfileUpdate.objects.get(id=update_id)
     profile_name = update_obj.profile.full_name
     
-    # Jeśli odrzucamy, to usuwamy wgrany przez usera plik do aktualizacji (jeśli istnieje)
+    # If rejected, delete the uploaded update file by user (if exists)
     if update_obj.profile_picture:
         import os
         if os.path.isfile(update_obj.profile_picture.path):
@@ -260,7 +270,7 @@ def admin_update_preview_view(request, update_id):
     update_obj = get_object_or_404(TrainerProfileUpdate, id=update_id)
     profile = update_obj.profile
     
-    # Podmiana danych w pamięci do podglądu (nie zapisujemy)
+    # Swap data in memory for preview (do not save)
     profile.full_name = update_obj.full_name
     profile.sport = update_obj.sport
     profile.location = update_obj.location
@@ -287,7 +297,7 @@ def delete_account_view(request):
         if request.user.check_password(password):
             user = request.user
             
-            # Usunięcie zdjęć z dysku
+            # Delete images from disk
             import os
             try:
                 if hasattr(user, 'trainer_profile'):
@@ -308,3 +318,38 @@ def delete_account_view(request):
             messages.error(request, "Podane hasło jest nieprawidłowe. Konto nie zostało usunięte.")
     return redirect('trainers:account')
 
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def ban_trainer_view(request, profile_id):
+    if request.method == 'POST':
+        profile = get_object_or_404(TrainerProfile, id=profile_id)
+        user = profile.user
+        user.is_active = False
+        user.status = 'BANNED'
+        user.save()
+        messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
+    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def delete_trainer_view(request, profile_id):
+    if request.method == 'POST':
+        profile = get_object_or_404(TrainerProfile, id=profile_id)
+        full_name = profile.full_name
+        user = profile.user
+        user.delete()
+        messages.success(request, f"Konto trenera {full_name} zostało trwale usunięte.")
+    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def unban_trainer_view(request, profile_id):
+    if request.method == 'POST':
+        profile = get_object_or_404(TrainerProfile, id=profile_id)
+        user = profile.user
+        user.is_active = True
+        user.status = 'APPROVED_TRAINER'
+        user.save()
+        messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
+    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
