@@ -4,24 +4,28 @@
 <section class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1">
     <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-navy mb-8">Zarządzaj trenerami</h2>
-        
-
 
         <!-- Tabs -->
         <div class="flex border-b border-gray-200 mb-8 overflow-x-auto">
             <button id="tab-pending" class="px-6 py-3 font-semibold text-sm transition-colors text-navy border-b-2 border-primary outline-none whitespace-nowrap" onclick="switchTab('pending')">
-                Nowe Wnioski ({{ pending_profiles.count }})
+                Nowe Wnioski ({{ pending_profiles.paginator.count }})
             </button>
             <button id="tab-updates" class="px-6 py-3 font-semibold text-sm transition-colors text-gray-500 hover:text-navy border-b-2 border-transparent outline-none whitespace-nowrap" onclick="switchTab('updates')">
-                Zmiany w profilach ({{ pending_updates.count }})
+                Zmiany w profilach ({{ pending_updates.paginator.count }})
             </button>
             <button id="tab-active" class="px-6 py-3 font-semibold text-sm transition-colors text-gray-500 hover:text-navy border-b-2 border-transparent outline-none whitespace-nowrap" onclick="switchTab('active')">
-                Aktywni trenerzy ({{ active_profiles.count }})
+                Aktywni trenerzy ({{ active_profiles.paginator.count }})
             </button>
         </div>
 
         <!-- Pending Content -->
-        <div id="content-pending" class="space-y-6 block">
+        <div id="content-pending" class="space-y-6 block tab-content">
+            <form method="GET" class="mb-6 flex gap-2">
+                <input type="hidden" name="tab" value="pending">
+                <input type="text" name="q_pending" value="{{ q_pending }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
+            </form>
+
             {% if pending_profiles %}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% for profile in pending_profiles %}
@@ -55,6 +59,19 @@
                     </div>
                     {% endfor %}
                 </div>
+                
+                <!-- Pagination -->
+                <div class="mt-8 flex justify-center gap-2">
+                    {% if pending_profiles.has_previous %}
+                        <a href="?tab=pending&p_pending={{ pending_profiles.previous_page_number }}&q_pending={{ q_pending }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Poprzednia</a>
+                    {% endif %}
+                    
+                    <span class="px-4 py-2 text-gray-600">Strona {{ pending_profiles.number }} z {{ pending_profiles.paginator.num_pages }}</span>
+                    
+                    {% if pending_profiles.has_next %}
+                        <a href="?tab=pending&p_pending={{ pending_profiles.next_page_number }}&q_pending={{ q_pending }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Następna</a>
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                     <p class="text-gray-500">Brak oczekujących wniosków o dołączenie.</p>
@@ -63,7 +80,13 @@
         </div>
 
         <!-- Updates Content -->
-        <div id="content-updates" class="space-y-6 hidden">
+        <div id="content-updates" class="space-y-6 hidden tab-content">
+            <form method="GET" class="mb-6 flex gap-2">
+                <input type="hidden" name="tab" value="updates">
+                <input type="text" name="q_updates" value="{{ q_updates }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
+            </form>
+
             {% if pending_updates %}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {% for update in pending_updates %}
@@ -111,6 +134,19 @@
                     </div>
                     {% endfor %}
                 </div>
+                
+                <!-- Pagination -->
+                <div class="mt-8 flex justify-center gap-2">
+                    {% if pending_updates.has_previous %}
+                        <a href="?tab=updates&p_updates={{ pending_updates.previous_page_number }}&q_updates={{ q_updates }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Poprzednia</a>
+                    {% endif %}
+                    
+                    <span class="px-4 py-2 text-gray-600">Strona {{ pending_updates.number }} z {{ pending_updates.paginator.num_pages }}</span>
+                    
+                    {% if pending_updates.has_next %}
+                        <a href="?tab=updates&p_updates={{ pending_updates.next_page_number }}&q_updates={{ q_updates }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Następna</a>
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                     <p class="text-gray-500">Brak oczekujących zmian w profilach.</p>
@@ -119,7 +155,13 @@
         </div>
 
         <!-- Active Content -->
-        <div id="content-active" class="space-y-6 hidden">
+        <div id="content-active" class="space-y-6 hidden tab-content">
+            <form method="GET" class="mb-6 flex gap-2">
+                <input type="hidden" name="tab" value="active">
+                <input type="text" name="q_active" value="{{ q_active }}" placeholder="Szukaj po imieniu..." class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-primary focus:border-primary">
+                <button type="submit" class="bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors">Szukaj</button>
+            </form>
+
             {% if active_profiles %}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% for profile in active_profiles %}
@@ -147,6 +189,19 @@
                     </div>
                     {% endfor %}
                 </div>
+                
+                <!-- Pagination -->
+                <div class="mt-8 flex justify-center gap-2">
+                    {% if active_profiles.has_previous %}
+                        <a href="?tab=active&p_active={{ active_profiles.previous_page_number }}&q_active={{ q_active }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Poprzednia</a>
+                    {% endif %}
+                    
+                    <span class="px-4 py-2 text-gray-600">Strona {{ active_profiles.number }} z {{ active_profiles.paginator.num_pages }}</span>
+                    
+                    {% if active_profiles.has_next %}
+                        <a href="?tab=active&p_active={{ active_profiles.next_page_number }}&q_active={{ q_active }}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Następna</a>
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
                     <p class="text-gray-500">Brak aktywnych trenerów.</p>
@@ -160,6 +215,9 @@
 <script>
     function switchTab(tab) {
         const tabs = ['pending', 'updates', 'active'];
+        
+        // Zapisz aktywną zakładkę w sessionStorage (można też w URL jak w linkach paginacji)
+        sessionStorage.setItem('adminActiveTab', tab);
         
         tabs.forEach(t => {
             const btn = document.getElementById('tab-' + t);
@@ -178,5 +236,18 @@
             }
         });
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Sprawdź czy z backendu przyszła aktywna zakładka (np z formularza szukania lub paginacji)
+        const urlParams = new URLSearchParams(window.location.search);
+        let activeTab = urlParams.get('tab');
+        
+        // Jeśli nie, weź z session storage, lub ustaw domyślnie pending
+        if (!activeTab) {
+            activeTab = sessionStorage.getItem('adminActiveTab') || 'pending';
+        }
+        
+        switchTab(activeTab);
+    });
 </script>
 {% endblock %}

@@ -25,6 +25,10 @@
                         <div class="relative">
                             {% if user.trainer_profile and user.trainer_profile.profile_picture %}
                                 <img src="{{ user.trainer_profile.profile_picture.url }}" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-transparent group-hover:border-primary transition-colors shadow-sm">
+                            {% elif user.trainer_profile and user.trainer_profile.gender == 'M' %}
+                                <img src="{% static 'img/man_profile.png' %}" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-transparent group-hover:border-primary transition-colors shadow-sm bg-gray-100">
+                            {% elif user.trainer_profile and user.trainer_profile.gender == 'F' %}
+                                <img src="{% static 'img/woman_profile.png' %}" alt="Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-transparent group-hover:border-primary transition-colors shadow-sm bg-gray-100">
                             {% else %}
                                 <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center border-2 border-transparent group-hover:border-primary transition-colors shadow-sm">
                                     <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>

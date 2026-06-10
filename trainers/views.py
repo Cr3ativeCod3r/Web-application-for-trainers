@@ -22,10 +22,15 @@ def home_search_view(request):
     if query_location:
         trainers = trainers.filter(location__icontains=query_location)
         
-    trainers = trainers.order_by('-created_at')[:12]
+    trainers = trainers.order_by('-created_at')
+    
+    from django.core.paginator import Paginator
+    paginator = Paginator(trainers, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
     return render(request, 'trainers/home_search.html', {
-        'trainers': trainers,
+        'trainers': page_obj,
         'query_sport': query_sport,
         'query_location': query_location
     })
@@ -137,21 +142,51 @@ def trainer_account_view(request):
                 'instagram': profile.instagram,
                 'facebook': profile.facebook,
                 'tiktok': profile.tiktok,
+                'gender': profile.gender,
+                'training_type': profile.training_type,
             }
             form = TrainerProfileUpdateForm(initial=initial_data)
 
     return render(request, 'trainers/account.html', {'form': form, 'pending_update': pending_update, 'profile': profile})
 
+from django.core.paginator import Paginator
+
 @staff_member_required
 def admin_dashboard_view(request):
+    q_pending = request.GET.get('q_pending', '').strip()
+    q_active = request.GET.get('q_active', '').strip()
+    q_updates = request.GET.get('q_updates', '').strip()
+
     pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION)
     active_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
     pending_updates = TrainerProfileUpdate.objects.all()
-    
+
+    if q_pending:
+        pending_profiles = pending_profiles.filter(full_name__icontains=q_pending)
+    if q_active:
+        active_profiles = active_profiles.filter(full_name__icontains=q_active)
+    if q_updates:
+        pending_updates = pending_updates.filter(profile__full_name__icontains=q_updates)
+
+    pending_profiles = pending_profiles.order_by('-created_at')
+    active_profiles = active_profiles.order_by('-created_at')
+    pending_updates = pending_updates.order_by('-created_at')
+
+    paginator_pending = Paginator(pending_profiles, 12)
+    paginator_active = Paginator(active_profiles, 12)
+    paginator_updates = Paginator(pending_updates, 12)
+
+    page_pending = request.GET.get('p_pending')
+    page_active = request.GET.get('p_active')
+    page_updates = request.GET.get('p_updates')
+
     context = {
-        'pending_profiles': pending_profiles,
-        'active_profiles': active_profiles,
-        'pending_updates': pending_updates,
+        'pending_profiles': paginator_pending.get_page(page_pending),
+        'active_profiles': paginator_active.get_page(page_active),
+        'pending_updates': paginator_updates.get_page(page_updates),
+        'q_pending': q_pending,
+        'q_active': q_active,
+        'q_updates': q_updates,
     }
     return render(request, 'trainers/admin_dashboard.html', context)
 
