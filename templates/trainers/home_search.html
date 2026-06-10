@@ -23,7 +23,7 @@
     
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 md:py-32">
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 drop-shadow-md">{% trans "Znajdź idealnego trenera dla siebie" %}</h1>
-        <p class="text-lg md:text-xl text-gray-200 mb-12 max-w-2xl mx-auto drop-shadow-md">{% trans "Osiągnij swoje cele treningowe z najlepszymi specjalistami w Twojej okolicy." %}</p>
+        <p class="text-lg md:text-xl text-gray-200 mb-12 max-w-2xl mx-auto drop-shadow-md">{% trans "Osiągnij swoje cele treningowe z najlepszymi specjalistami." %}</p>
         
         <div class="bg-white/10 backdrop-blur-md p-4 md:p-6 rounded-2xl max-w-4xl mx-auto shadow-2xl border border-white/20">
             <form action="{% url 'trainers:home_search' %}" method="GET" class="flex flex-col md:flex-row gap-4">
@@ -50,6 +50,10 @@
                     <div class="relative w-full aspect-square rounded-2xl overflow-hidden mb-4">
                         {% if trainer.profile_picture %}
                             <img src="{{ trainer.profile_picture.url }}" alt="{{ trainer.full_name }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        {% elif trainer.gender == 'M' %}
+                            <img src="{% static 'img/man_profile.png' %}" alt="{{ trainer.full_name }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        {% elif trainer.gender == 'F' %}
+                            <img src="{% static 'img/woman_profile.png' %}" alt="{{ trainer.full_name }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                         {% else %}
                             <div class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
                                 <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -64,7 +68,7 @@
                             <h3 class="text-lg md:text-xl font-bold text-white mb-1 drop-shadow-md">{{ trainer.full_name }}</h3>
                             <p class="text-xs md:text-sm text-gray-200 flex items-center gap-1.5 drop-shadow-md font-medium">
                                 <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                {{ trainer.location }}
+                                {{ trainer.location }} ({{ trainer.get_training_type_display }})
                             </p>
                         </div>
                     </div>
@@ -85,6 +89,22 @@
                 </a>
                 {% endfor %}
             </div>
+            
+            <!-- Pagination -->
+            {% if trainers.has_other_pages %}
+            <div class="mt-12 flex justify-center gap-2">
+                {% if trainers.has_previous %}
+                    <a href="?page={{ trainers.previous_page_number }}{% if query_sport %}&sport={{ query_sport }}{% endif %}{% if query_location %}&location={{ query_location }}{% endif %}" class="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 font-medium shadow-sm transition-colors">Poprzednia</a>
+                {% endif %}
+                
+                <span class="px-4 py-2 text-gray-600 font-medium">Strona {{ trainers.number }} z {{ trainers.paginator.num_pages }}</span>
+                
+                {% if trainers.has_next %}
+                    <a href="?page={{ trainers.next_page_number }}{% if query_sport %}&sport={{ query_sport }}{% endif %}{% if query_location %}&location={{ query_location }}{% endif %}" class="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 font-medium shadow-sm transition-colors">Następna</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
         {% else %}
             <div class="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
                 <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>

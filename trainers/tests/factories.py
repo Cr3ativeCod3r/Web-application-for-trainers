@@ -13,11 +13,19 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
         model = TrainerProfile
 
     user = factory.SubFactory(UserFactory)
-    full_name = factory.LazyAttribute(lambda _: fake.name())
+    gender = factory.LazyAttribute(lambda _: random.choice(['M', 'F']))
+    
+    @factory.lazy_attribute
+    def full_name(self):
+        if self.gender == 'M':
+            return fake.first_name_male()
+        return fake.first_name_female()
     
     @factory.lazy_attribute
     def username(self):
         return slugify(self.full_name) + '-' + str(random.randint(1000, 9999))
+        
+    training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
         
     sport = factory.LazyAttribute(lambda _: random.choice([
         'Trening personalny', 'Joga, Pilates', 'Boks', 'Pływanie', 

@@ -11,6 +11,11 @@ class TrainerApplicationForm(forms.ModelForm):
             'profile_picture': forms.FileInput(attrs={'accept': 'image/png'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['gender'].required = True
+        self.fields['gender'].empty_label = "Wybierz płeć..."
+
     def clean_profile_picture(self):
         picture = self.cleaned_data.get('profile_picture', False)
         if picture:
@@ -38,6 +43,11 @@ class TrainerProfileUpdateForm(forms.ModelForm):
             'classes_description': forms.Textarea(attrs={'rows': 4}),
             'profile_picture': forms.FileInput(attrs={'accept': 'image/png'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['gender'].required = True
+        self.fields['gender'].empty_label = "Wybierz płeć..."
 
     def clean_profile_picture(self):
         picture = self.cleaned_data.get('profile_picture', False)
