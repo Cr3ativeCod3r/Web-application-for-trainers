@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<section class="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1">
+    <div class="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100 text-center transform transition-all hover:shadow-2xl">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+        </div>
+        
+        <h2 class="text-3xl font-extrabold text-navy mb-4">
+            {% trans "Dziękujemy za rejestrację!" %}
+        </h2>
+        
+        <p class="text-gray-600 mb-8 leading-relaxed">
+            {% trans "Potwierdź swoje konto klikając w link wysłany na Twój adres e-mail, aby móc się zalogować i złożyć wniosek o bycie trenerem." %}
+        </p>
+        
+        <a href="{% url 'accounts:login' %}" class="inline-flex w-full justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-navy bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
+            {% trans "Przejdź do logowania" %}
+        </a>
+    </div>
+</section>
+{% endblock %}
