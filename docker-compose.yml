@@ -8,7 +8,7 @@ services:
       - POSTGRES_USER=trainuser
       - POSTGRES_PASSWORD=trainpass
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   web:
     build: .
@@ -20,6 +20,7 @@ services:
     environment:
       - DEBUG=1
       - DJANGO_SETTINGS_MODULE=core.settings
+      - API_GEMINI=${API_GEMINI}
       - DB_HOST=db
       - DB_NAME=trainapp
       - DB_USER=trainuser
@@ -32,9 +33,9 @@ services:
     depends_on:
       - db
     command: >
-      sh -c "until uv run manage.py migrate; do echo 'Waiting for db...'; sleep 2; done &&
-             uv run manage.py createadmin &&
-             uv run manage.py runserver 0.0.0.0:8000"
+      sh -c "until uv run python manage.py migrate; do echo 'Waiting for db...'; sleep 2; done &&
+             uv run python manage.py createadmin &&
+             uv run python manage.py runserver 0.0.0.0:8000"
 
 volumes:
   postgres_data:

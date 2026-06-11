@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Jaki sport jest dla Ciebie? | Coachly{% endblock %}
+
+{% block content %}
+<section class="py-16 md:py-24 bg-gray-50 flex-1 min-h-screen">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-navy mb-4">Znajdź swój <span class="text-primary">idealny sport</span></h1>
+            <p class="text-xl text-gray-500">Odpowiedz na 12 krótkich pytań, a nasza AI dopasuje aktywność fizyczną do Twoich preferencji.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl border border-gray-100" id="quiz-container">
+            <!-- Progress Bar -->
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-gray-500" id="progress-text">Pytanie 1 z 13</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-8" id="progress-bar-container">
+                <div class="bg-primary h-2.5 rounded-full" style="width: 0%" id="progress-bar"></div>
+            </div>
+
+            <!-- Question Box -->
+            <div id="question-box">
+                <h2 class="text-2xl font-bold text-navy mb-6" id="question-text">Pytanie 1...</h2>
+                <div class="space-y-4" id="options-container">
+                    <!-- Opcje będą generowane przez JS -->
+                </div>
+            </div>
+
+            <!-- Result Box -->
+            <div id="result-box" class="hidden text-center">
+                <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" id="loading-spinner"></div>
+                <h2 class="text-2xl font-bold text-navy mb-4" id="result-title">Analizowanie odpowiedzi...</h2>
+                <div class="text-left text-gray-700 space-y-4 leading-relaxed bg-gray-50 p-6 rounded-2xl border border-gray-100" id="result-text"></div>
+                <a href="{% url 'trainers:home_search' %}" class="mt-8 inline-block bg-navy hover:bg-navy-dark text-white font-semibold py-3 px-8 rounded-xl transition-colors hidden" id="find-coach-btn">Znajdź trenera do tego sportu</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    const questions = [
+        {
+            text: "1. Gdzie wolisz spędzać czas podczas treningu?",
+            options: ["Na świeżym powietrzu (park, las, góry)", "W zamkniętym pomieszczeniu (siłownia, sala, basen)"]
+        },
+        {
+            text: "2. Wolisz pracować w zespole, czy polegać tylko na sobie?",
+            options: ["Zdecydowanie sport zespołowy", "Tylko sport indywidualny", "Gra w parach / małe grupy"]
+        },
+        {
+            text: "3. Jaki jest Twój główny cel?",
+            options: ["Zbudować siłę i mięśnie", "Schudnąć i spalić kalorie", "Zrelaksować się i wyciszyć umysł", "Poczuć adrenalinę"]
+        },
+        {
+            text: "4. Jak oceniasz swoją aktualną kondycję fizyczną (1-10)?",
+            options: ["1-3 (Dopiero zaczynam)", "4-6 (Czasem coś ćwiczę)", "7-8 (Dobra kondycja)", "9-10 (Bardzo dobra kondycja)"]
+        },
+        {
+            text: "5. Wolisz szybkie, dynamiczne tempo czy spokojne i precyzyjne ruchy?",
+            options: ["Bardzo szybkie, intensywne tempo", "Umiarkowane tempo", "Spokojne, powolne i dokładne ruchy"]
+        },
+        {
+            text: "6. Jak często w tygodniu możesz trenować?",
+            options: ["1-2 razy w tygodniu", "3-4 razy w tygodniu", "Prawie codziennie (5+ razy)"]
+        },
+        {
+            text: "7. Czy lubisz rywalizację z innymi ludźmi?",
+            options: ["Kocham rywalizację!", "Lubię odrobinę rywalizacji", "Wolę rywalizować sam ze sobą (pobijać własne rekordy)", "Nie znoszę rywalizacji"]
+        },
+        {
+            text: "8. Jakie masz nastawienie do sportów walki i pełnego kontaktu?",
+            options: ["Lubię sporty kontaktowe / walkę", "Tylko delikatny kontakt w grach zespołowych", "Zero kontaktu fizycznego z rywalem"]
+        },
+        {
+            text: "9. Jakim budżetem dysponujesz na start (sprzęt/karnety)?",
+            options: ["Minimalnym (np. buty do biegania i tyle)", "Średnim (karnet na siłownię, podstawowy sprzęt)", "Wysokim (stać mnie na drogi sprzęt, np. rower, narty, trener personalny)"]
+        },
+        {
+            text: "10. Jak czujesz się w wodzie?",
+            options: ["Uwielbiam wodę, czuję się jak ryba!", "Tylko rekreacyjnie w lecie", "Unikam wody"]
+        },
+        {
+            text: "11. Jak reagujesz na muzykę podczas ćwiczeń?",
+            options: ["Musi być! Nadaje mi rytm (np. zumba, aerobik, taniec)", "Lubię słuchać własnej muzyki w słuchawkach", "Wolę ciszę lub dźwięki natury, by się w pełni skupić"]
+        },
+        {
+            text: "12. Jakie uczucie chciałbyś mieć po zakończonym treningu?",
+            options: ["Kompletne wyczerpanie fizyczne i maksymalna satysfakcja", "Poczucie relaksu, rozciągnięcia i czysty umysł", "Satysfakcja z nauki nowej, trudnej technicznie umiejętności"]
+        },
+        {
+            text: "13. Czy jest jeszcze coś, co powinniśmy o Tobie wiedzieć? (np. kontuzje, ulubione sporty z dzieciństwa, specjalne wymagania)",
+            type: "open"
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+    const answers = [];
+
+    const questionTextEl = document.getElementById('question-text');
+    const optionsContainerEl = document.getElementById('options-container');
+    const progressBarEl = document.getElementById('progress-bar');
+    const questionBoxEl = document.getElementById('question-box');
+    const resultBoxEl = document.getElementById('result-box');
+    const loadingSpinnerEl = document.getElementById('loading-spinner');
+    const resultTitleEl = document.getElementById('result-title');
+    const resultTextEl = document.getElementById('result-text');
+    const findCoachBtn = document.getElementById('find-coach-btn');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+
+    function renderQuestion() {
+        const question = questions[currentQuestionIndex];
+        questionTextEl.textContent = question.text;
+        optionsContainerEl.innerHTML = '';
+        
+        document.getElementById('progress-text').textContent = `Pytanie ${currentQuestionIndex + 1} z ${questions.length}`;
+
+        if (question.type === 'open') {
+            const textarea = document.createElement('textarea');
+            textarea.className = "w-full p-4 rounded-xl border-2 border-gray-200 focus:border-primary outline-none min-h-[120px] resize-y mb-4";
+            textarea.placeholder = "Wpisz swoją odpowiedź (lub zostaw pole puste)...";
+            textarea.id = "open-answer";
+            
+            const button = document.createElement('button');
+            button.className = "w-full bg-primary hover:bg-navy-dark text-white font-semibold py-4 px-6 rounded-xl transition-colors";
+            button.textContent = "Zakończ i zobacz wynik";
+            button.onclick = () => {
+                selectOption(document.getElementById('open-answer').value || "Brak uwag");
+            };
+            
+            optionsContainerEl.appendChild(textarea);
+            optionsContainerEl.appendChild(button);
+        } else {
+            question.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = "w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all font-medium text-gray-700";
+                button.textContent = option;
+                button.onclick = () => selectOption(option);
+                optionsContainerEl.appendChild(button);
+            });
+        }
+
+        // Update progress bar
+        const progress = ((currentQuestionIndex) / questions.length) * 100;
+        progressBarEl.style.width = `${progress}%`;
+    }
+
+    function selectOption(option) {
+        answers.push({
+            question: questions[currentQuestionIndex].text,
+            answer: option
+        });
+
+        currentQuestionIndex++;
+
+        if (currentQuestionIndex < questions.length) {
+            renderQuestion();
+        } else {
+            submitQuiz();
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    async function submitQuiz() {
+        progressBarEl.style.width = '100%';
+        document.getElementById('progress-text').textContent = "Zakończono!";
+        questionBoxEl.classList.add('hidden');
+        resultBoxEl.classList.remove('hidden');
+
+        try {
+            const csrfToken = getCookie('csrftoken');
+            const response = await fetch('{% url "pages:quiz_submit" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ answers: answers })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                loadingSpinnerEl.classList.add('hidden');
+                resultTitleEl.textContent = "Oto Twój idealny sport!";
+                // Use innerHTML because Gemini returns markdown sometimes, or format text
+                resultTextEl.innerHTML = data.recommendation.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                findCoachBtn.classList.remove('hidden');
+            } else {
+                throw new Error(data.error || 'Wystąpił błąd podczas analizy.');
+            }
+        } catch (error) {
+            loadingSpinnerEl.classList.add('hidden');
+            resultTitleEl.textContent = "Wystąpił błąd";
+            resultTitleEl.classList.add('text-red-500');
+            resultTextEl.textContent = error.message;
+        }
+    }
+
+    // Initialize first question
+    renderQuestion();
+</script>
+{% endblock %}
