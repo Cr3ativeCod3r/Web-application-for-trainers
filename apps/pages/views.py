@@ -35,7 +35,8 @@ def quiz_view(request):
 
 import json
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from django.http import JsonResponse
 
 from apps.trainers.models import TrainerProfile
@@ -77,9 +78,14 @@ Odpowiedzi użytkownika:
             if not api_key:
                 return JsonResponse({'error': 'Brak klucza API Gemini w konfiguracji serwera.'}, status=500)
                 
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-3.5-flash')
-            response = model.generate_content(prompt)
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model='gemini-3.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
             
             # Parse JSON
             try:
