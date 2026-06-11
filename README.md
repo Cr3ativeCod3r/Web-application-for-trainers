@@ -2,8 +2,16 @@
 
 This is a modern web application for trainers and users built with Django, PostgreSQL, and Docker. Dependency management is handled by `uv`.
 
+<img width="1080" height="1920" alt="Image" src="https://github.com/user-attachments/assets/591990cb-0010-4334-a7e1-a5628a589892" />
+
+## 🌟 Key Features
+
+* **🧠 AI Sport Matcher (Trener AI):** An interactive, step-by-step quiz powered by the **Google Gemini API** (`gemini-3.5-flash`). It asks users 13 carefully curated questions (including an open-ended feedback section) regarding their goals, budget, physical condition, and preferences. Based on the answers, the AI acts as a professional coach, providing a personalized and highly motivating sport recommendation. 
+* **🔍 Advanced Trainer Search:** A robust search engine allowing users to filter trainers by sport, location, and training type (Online/Stationary).
+* **👤 Professional Profiles:** Dedicated profile pages for trainers to showcase their skills, bio, and pictures.
 ## Project Structure
 
+The application follows a project-level architecture pattern (sometimes referred to as a monorepo-style Django structure or apps-as-packages layout).
 The structure of the application is designed to be modular and scalable:
 
 ```text

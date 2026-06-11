@@ -30,4 +30,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Run the Django application
 EXPOSE 8000
-CMD ["uv", "run", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -17,6 +17,7 @@ def home_search_view(request):
     """
     query_sport = request.GET.get('sport', '').strip()
     query_location = request.GET.get('location', '').strip()
+    query_type = request.GET.get('type', '').strip()
     
     trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
     
@@ -24,6 +25,8 @@ def home_search_view(request):
         trainers = trainers.filter(sport__icontains=query_sport)
     if query_location:
         trainers = trainers.filter(location__icontains=query_location)
+    if query_type in ['ONLINE', 'STATIONARY']:
+        trainers = trainers.filter(Q(training_type=query_type) | Q(training_type='BOTH'))
         
     trainers = trainers.order_by('-created_at')
     
@@ -35,7 +38,8 @@ def home_search_view(request):
     return render(request, 'trainers/home_search.html', {
         'trainers': page_obj,
         'query_sport': query_sport,
-        'query_location': query_location
+        'query_location': query_location,
+        'query_type': query_type
     })
 
 def autocomplete_view(request):

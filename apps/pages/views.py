@@ -29,3 +29,39 @@ def contact_view(request):
 
 def privacy_view(request):
     return render(request, 'pages/privacy.html')
+
+def quiz_view(request):
+    return render(request, 'pages/quiz.html')
+
+import json
+import os
+import google.generativeai as genai
+from django.http import JsonResponse
+
+def quiz_submit_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            answers = data.get('answers', [])
+            
+            if not answers:
+                return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
+                
+            prompt = "Na podstawie poniższych odpowiedzi użytkownika na 13 pytań, doradź mu jaki sport będzie dla niego najlepszy. Podaj konkretne 1-2 propozycje oraz krótkie, motywujące uzasadnienie. Pisz jako profesjonalny trener.\n\n"
+            for item in answers:
+                prompt += f"Pytanie: {item.get('question')}\nOdpowiedź: {item.get('answer')}\n\n"
+                
+            api_key = os.environ.get('API_GEMINI') or os.environ.get('api_gemini')
+            if not api_key:
+                return JsonResponse({'error': 'Brak klucza API Gemini w konfiguracji serwera.'}, status=500)
+                
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-3.5-flash')
+            response = model.generate_content(prompt)
+            
+            return JsonResponse({'recommendation': response.text})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+            
+    return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
