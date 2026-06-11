@@ -38,6 +38,9 @@ import os
 import google.generativeai as genai
 from django.http import JsonResponse
 
+from apps.trainers.models import TrainerProfile
+from apps.accounts.models import TrainerStatus
+
 def quiz_submit_api(request):
     if request.method == 'POST':
         try:
@@ -47,7 +50,26 @@ def quiz_submit_api(request):
             if not answers:
                 return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
                 
-            prompt = "Na podstawie poniższych odpowiedzi użytkownika na 13 pytań, doradź mu jaki sport będzie dla niego najlepszy. Podaj konkretne 1-2 propozycje oraz krótkie, motywujące uzasadnienie. Pisz jako profesjonalny trener.\n\n"
+            # Query all active trainers to find available sports
+            approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+            available_sports = set()
+            for trainer in approved_trainers:
+                available_sports.update(trainer.sports_list)
+            
+            sports_str = ", ".join(sorted(list(available_sports))) if available_sports else "Brak sportów w bazie"
+            
+            prompt = f"""Na podstawie poniższych odpowiedzi użytkownika na 13 pytań, doradź mu jaki sport będzie dla niego najlepszy.
+Z poniższej listy sportów (to dyscypliny oferowane przez naszych trenerów), wybierz JEDEN, który najlepiej pasuje: [{sports_str}]. 
+Jeśli żaden nie pasuje w 100%, wybierz ten najbliższy prawdy. 
+
+Zwróć odpowiedź WYŁĄCZNIE jako poprawny obiekt JSON (bez markdown block) o strukturze:
+{{
+  "text": "Twój motywujący tekst (2-3 akapity). Pisz jako profesjonalny trener.",
+  "suggested_sport": "Dokładna nazwa wybranego sportu z listy"
+}}
+
+Odpowiedzi użytkownika:
+"""
             for item in answers:
                 prompt += f"Pytanie: {item.get('question')}\nOdpowiedź: {item.get('answer')}\n\n"
                 
@@ -59,7 +81,39 @@ def quiz_submit_api(request):
             model = genai.GenerativeModel('gemini-3.5-flash')
             response = model.generate_content(prompt)
             
-            return JsonResponse({'recommendation': response.text})
+            # Parse JSON
+            try:
+                response_text = response.text.strip()
+                if response_text.startswith('```json'):
+                    response_text = response_text[7:-3].strip()
+                elif response_text.startswith('```'):
+                    response_text = response_text[3:-3].strip()
+                
+                result_data = json.loads(response_text)
+                ai_text = result_data.get('text', 'Błąd w formacie tekstu.')
+                suggested_sport = result_data.get('suggested_sport', '')
+            except Exception as e:
+                return JsonResponse({'error': 'Model zwrócił nieprawidłowy format (oczekiwano JSON). ' + str(e)}, status=500)
+            
+            # Find recommended trainers
+            recommended_trainers = []
+            if suggested_sport:
+                matched_trainers = approved_trainers.filter(sport__icontains=suggested_sport)[:3]
+                for t in matched_trainers:
+                    from django.urls import reverse
+                    recommended_trainers.append({
+                        'name': t.full_name,
+                        'sport': t.sport,
+                        'url': reverse('trainers:public_profile', kwargs={'username': t.username}),
+                        'location': t.location,
+                        'type': t.get_training_type_display()
+                    })
+            
+            return JsonResponse({
+                'recommendation': ai_text,
+                'suggested_sport': suggested_sport,
+                'trainers': recommended_trainers
+            })
             
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

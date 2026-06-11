@@ -7,6 +7,8 @@ This is a modern web application for trainers and users built with Django, Postg
 ## 🌟 Key Features
 
 * **🧠 AI Sport Matcher (Trener AI):** An interactive, step-by-step quiz powered by the **Google Gemini API** (`gemini-3.5-flash`). It asks users 13 carefully curated questions (including an open-ended feedback section) regarding their goals, budget, physical condition, and preferences. Based on the answers, the AI acts as a professional coach, providing a personalized and highly motivating sport recommendation. 
+<img width="389" height="642" alt="Image" src="https://github.com/user-attachments/assets/f0d976ef-19ec-42b4-9bd1-56f4e23e6a96" />
+
 * **🔍 Advanced Trainer Search:** A robust search engine allowing users to filter trainers by sport, location, and training type (Online/Stationary).
 * **👤 Professional Profiles:** Dedicated profile pages for trainers to showcase their skills, bio, and pictures.
 ## Project Structure

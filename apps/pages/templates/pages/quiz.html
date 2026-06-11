@@ -197,9 +197,27 @@
             
             if (response.ok) {
                 loadingSpinnerEl.classList.add('hidden');
-                resultTitleEl.textContent = "Oto Twój idealny sport!";
-                // Use innerHTML because Gemini returns markdown sometimes, or format text
+                resultTitleEl.textContent = "Oto Twój idealny sport: " + (data.suggested_sport || "");
                 resultTextEl.innerHTML = data.recommendation.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                if (data.trainers && data.trainers.length > 0) {
+                    let trainersHtml = '<div class="mt-8 border-t border-gray-200 pt-6"><h3 class="text-xl font-bold text-navy mb-4">Polecani trenerzy tego sportu:</h3><div class="grid gap-4 md:grid-cols-2">';
+                    data.trainers.forEach(t => {
+                        trainersHtml += `
+                            <a href="${t.url}" class="block bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow hover:border-primary">
+                                <h4 class="font-bold text-navy text-lg">${t.name}</h4>
+                                <p class="text-sm text-gray-500 mb-2">${t.sport}</p>
+                                <div class="flex items-center text-xs text-gray-400 gap-1 font-medium">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    ${t.location} (${t.type})
+                                </div>
+                            </a>
+                        `;
+                    });
+                    trainersHtml += '</div></div>';
+                    resultTextEl.innerHTML += trainersHtml;
+                }
+                
                 findCoachBtn.classList.remove('hidden');
             } else {
                 throw new Error(data.error || 'Wystąpił błąd podczas analizy.');
