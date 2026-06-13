@@ -44,3 +44,15 @@ my_trainers_project/
 - **apps/pages**: Handles static and semi-static pages such as About, Contact, and Privacy Policy.
 - **templates/static**: Location for global base HTML files, reusable components, and static assets (CSS, JS, Images). App-specific templates reside in their respective `apps/<app_name>/templates/` directories.
 - **media**: Where all user-provided data and photos reside (not committed to source control).
+
+## 🚀 Future Roadmap & Development Ideas 
+
+1. **Real-time Chat & WebSockets (Django Channels):** 
+   - Allow users to directly message trainers on the platform. 
+   - Implementing this demonstrates knowledge of asynchronous Python, ASGI, Redis, and real-time bidirectional communication.
+2. **Booking & Calendar System with External API Integration:**
+   - A feature for users to schedule training sessions directly through the app.
+   - Syncing it with the **Google Calendar API** would showcase complex business logic handling, dealing with timezones, scheduling conflicts, and third-party API integrations.managing secure user data.
+3. **CI/CD Pipeline & Scalable Cloud Deployment:**
+   - Setting up **GitHub Actions** for automated testing and linting, and deploying the Dockerized application to a cloud provider like **AWS (ECS/EC2)** or **DigitalOcean**.
+   - Connecting an external **S3 Bucket** for handling media files instead of local storage. 
