@@ -13,7 +13,7 @@ This is a modern web application for trainers and users built with Django, Postg
 * **👤 Professional Profiles:** Dedicated profile pages for trainers to showcase their skills, bio, and pictures.
 * **🔐 Google Social Authentication:** Seamless and secure sign-up and login process utilizing OAuth 2.0 via Google, providing users with a frictionless authentication experience.
 
-<img width="788" height="1128" alt="Image" src="https://github.com/user-attachments/assets/5fd23a59-fba5-45e5-9888-4e0b7925b2e3" />
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/85377786-9a74-4779-aaeb-b59ed7bee0b2" />
 
 * **✍️ Trainer Publications (Knowledge Base):** An integrated blogging system allowing trainers to publish articles and share their expertise. Includes a dedicated "Knowledge Base" hub with search capabilities, paginated views, and seamless integration with trainer profiles.
 
