@@ -125,3 +125,25 @@ Odpowiedzi użytkownika:
             return JsonResponse({'error': str(e)}, status=500)
             
     return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
+
+from django.core.paginator import Paginator
+from apps.trainers.models import TrainerPost
+
+def knowledge_base_view(request):
+    query = request.GET.get('q', '').strip()
+    
+    # Get all posts from approved trainers
+    posts = TrainerPost.objects.filter(trainer__user__status=TrainerStatus.APPROVED_TRAINER).order_by('-created_at')
+    
+    if query:
+        posts = posts.filter(title__icontains=query)
+        
+    paginator = Paginator(posts, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'pages/knowledge_base.html', {
+        'posts': page_obj,
+        'query': query
+    })
+

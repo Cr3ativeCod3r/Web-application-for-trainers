@@ -107,12 +107,13 @@ class TrainerPost(models.Model):
             try:
                 old_instance = TrainerPost.objects.get(pk=self.pk)
                 if old_instance.image and self.image != old_instance.image:
-                    import os
-                    if os.path.isfile(old_instance.image.path):
-                        try:
-                            os.remove(old_instance.image.path)
-                        except Exception:
-                            pass
+                    if 'post_hero.png' not in old_instance.image.name:
+                        import os
+                        if os.path.isfile(old_instance.image.path):
+                            try:
+                                os.remove(old_instance.image.path)
+                            except Exception:
+                                pass
             except TrainerPost.DoesNotExist:
                 pass
 
@@ -129,7 +130,7 @@ class TrainerPost(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.image:
+        if self.image and 'post_hero.png' not in self.image.name:
             import os
             if os.path.isfile(self.image.path):
                 try:
