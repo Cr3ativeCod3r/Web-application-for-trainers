@@ -164,11 +164,13 @@ def admin_dashboard_view(request):
     q_active = request.GET.get('q_active', '').strip()
     q_updates = request.GET.get('q_updates', '').strip()
     q_banned = request.GET.get('q_banned', '').strip()
+    q_posts = request.GET.get('q_posts', '').strip()
 
     pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION)
     active_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
     banned_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.BANNED)
     pending_updates = TrainerProfileUpdate.objects.all()
+    all_posts = TrainerPost.objects.all()
 
     if q_pending:
         pending_profiles = pending_profiles.filter(contact_email__icontains=q_pending)
@@ -178,31 +180,38 @@ def admin_dashboard_view(request):
         pending_updates = pending_updates.filter(profile__contact_email__icontains=q_updates)
     if q_banned:
         banned_profiles = banned_profiles.filter(contact_email__icontains=q_banned)
+    if q_posts:
+        all_posts = all_posts.filter(title__icontains=q_posts)
 
     pending_profiles = pending_profiles.order_by('-created_at')
     active_profiles = active_profiles.order_by('-created_at')
     pending_updates = pending_updates.order_by('-created_at')
     banned_profiles = banned_profiles.order_by('-created_at')
+    all_posts = all_posts.order_by('-created_at')
 
     paginator_pending = Paginator(pending_profiles, 12)
     paginator_active = Paginator(active_profiles, 12)
     paginator_updates = Paginator(pending_updates, 12)
     paginator_banned = Paginator(banned_profiles, 12)
+    paginator_posts = Paginator(all_posts, 12)
 
     page_pending = request.GET.get('p_pending')
     page_active = request.GET.get('p_active')
     page_updates = request.GET.get('p_updates')
     page_banned = request.GET.get('p_banned')
+    page_posts = request.GET.get('p_posts')
 
     context = {
         'pending_profiles': paginator_pending.get_page(page_pending),
         'active_profiles': paginator_active.get_page(page_active),
         'pending_updates': paginator_updates.get_page(page_updates),
         'banned_profiles': paginator_banned.get_page(page_banned),
+        'all_posts': paginator_posts.get_page(page_posts),
         'q_pending': q_pending,
         'q_active': q_active,
         'q_updates': q_updates,
         'q_banned': q_banned,
+        'q_posts': q_posts,
     }
     return render(request, 'trainers/admin_dashboard.html', context)
 
@@ -357,3 +366,98 @@ def unban_trainer_view(request, profile_id):
         user.save()
         messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
     return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
+
+from .models import TrainerPost
+from .forms import TrainerPostForm
+from django.utils.text import slugify
+
+@login_required
+def post_list_view(request):
+    try:
+        profile = request.user.trainer_profile
+    except TrainerProfile.DoesNotExist:
+        messages.error(request, "Nie masz jeszcze profilu trenera.")
+        return redirect('trainers:apply')
+        
+    posts = TrainerPost.objects.filter(trainer=profile).order_by('-created_at')
+    
+    paginator = Paginator(posts, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'trainers/post_list.html', {'posts': page_obj})
+
+@login_required
+def post_create_view(request):
+    try:
+        profile = request.user.trainer_profile
+    except TrainerProfile.DoesNotExist:
+        messages.error(request, "Nie masz jeszcze profilu trenera.")
+        return redirect('trainers:apply')
+        
+    if request.method == 'POST':
+        form = TrainerPostForm(request.POST, request.FILES)
+        if form.is_valid():
+            post = form.save(commit=False)
+            post.trainer = profile
+            post.save()
+            messages.success(request, "Post został pomyślnie dodany.")
+            return redirect('trainers:post_list')
+    else:
+        form = TrainerPostForm()
+        
+    return render(request, 'trainers/post_form.html', {'form': form, 'title': 'Dodaj nowy post'})
+
+@login_required
+def post_edit_view(request, post_id):
+    try:
+        profile = request.user.trainer_profile
+    except TrainerProfile.DoesNotExist:
+        messages.error(request, "Nie masz profilu trenera.")
+        return redirect('trainers:apply')
+        
+    post = get_object_or_404(TrainerPost, id=post_id, trainer=profile)
+    
+    if request.method == 'POST':
+        form = TrainerPostForm(request.POST, request.FILES, instance=post)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Post został pomyślnie zaktualizowany.")
+            return redirect('trainers:post_list')
+    else:
+        form = TrainerPostForm(instance=post)
+        
+    return render(request, 'trainers/post_form.html', {'form': form, 'title': 'Edytuj post', 'post': post})
+
+@login_required
+def post_delete_view(request, post_id):
+    try:
+        profile = request.user.trainer_profile
+    except TrainerProfile.DoesNotExist:
+        messages.error(request, "Nie masz profilu trenera.")
+        return redirect('trainers:apply')
+        
+    post = get_object_or_404(TrainerPost, id=post_id, trainer=profile)
+    
+    if request.method == 'POST':
+        post.delete()
+        messages.success(request, "Post został pomyślnie usunięty.")
+        
+    return redirect('trainers:post_list')
+
+def public_post_view(request, username, slug):
+    profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
+    post = get_object_or_404(TrainerPost, trainer=profile, slug=slug)
+    
+    return render(request, 'trainers/public_post.html', {'profile': profile, 'post': post})
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def admin_delete_post_view(request, post_id):
+    if request.method == 'POST':
+        post = get_object_or_404(TrainerPost, id=post_id)
+        title = post.title
+        post.delete()
+        messages.success(request, f"Post '{title}' został usunięty.")
+    return redirect(reverse('trainers:admin_dashboard') + '?tab=posts')
+

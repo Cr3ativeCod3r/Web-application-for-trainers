@@ -57,3 +57,17 @@ class TrainerProfileUpdateForm(forms.ModelForm):
             if hasattr(picture, 'content_type') and picture.content_type != 'image/png':
                 raise forms.ValidationError("Zdjęcie musi być w formacie PNG.")
         return picture
+
+from .models import TrainerPost
+
+class TrainerPostForm(forms.ModelForm):
+    class Meta:
+        model = TrainerPost
+        fields = ['title', 'image', 'content']
+        widgets = {
+            'content': forms.Textarea(attrs={'class': 'wysiwyg-editor'}),
+            'title': forms.TextInput(attrs={
+                'class': 'w-full border-gray-300 rounded-xl shadow-sm focus:border-primary focus:ring-primary px-4 py-3 text-lg'
+            }),
+            'image': forms.FileInput(attrs={'class': 'w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50'}),
+        }
