@@ -9,4 +9,5 @@ urlpatterns = [
     path('polityka-prywatnosci/', views.privacy_view, name='privacy'),
     path('quiz/', views.quiz_view, name='quiz'),
     path('quiz/submit/', views.quiz_submit_api, name='quiz_submit'),
+    path('strefa-wiedzy/', views.knowledge_base_view, name='knowledge_base'),
 ]
