@@ -12,8 +12,13 @@ This is a modern web application for trainers and users built with Django, Postg
 * **🔍 Advanced Trainer Search:** A robust search engine allowing users to filter trainers by sport, location, and training type (Online/Stationary).
 * **👤 Professional Profiles:** Dedicated profile pages for trainers to showcase their skills, bio, and pictures.
 * **🔐 Google Social Authentication:** Seamless and secure sign-up and login process utilizing OAuth 2.0 via Google, providing users with a frictionless authentication experience.
+
+<img width="788" height="1128" alt="Image" src="https://github.com/user-attachments/assets/5fd23a59-fba5-45e5-9888-4e0b7925b2e3" />
+
 * **✍️ Trainer Publications (Knowledge Base):** An integrated blogging system allowing trainers to publish articles and share their expertise. Includes a dedicated "Knowledge Base" hub with search capabilities, paginated views, and seamless integration with trainer profiles.
+
 <img width="1266" height="1218" alt="Image" src="https://github.com/user-attachments/assets/a9f55de7-efc0-471a-9588-6fc81737fa8f" />
+
 ## Project Structure
 
 The application follows a project-level architecture pattern (sometimes referred to as a monorepo-style Django structure or apps-as-packages layout).
