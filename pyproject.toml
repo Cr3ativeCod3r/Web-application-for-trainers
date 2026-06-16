@@ -14,3 +14,13 @@ dependencies = [
     "django-allauth[socialaccount]>=65.18.0",
     "python-dotenv>=1.2.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-django>=4.12.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "core.test_settings"
+python_files = ["test_*.py", "*_test.py"]
