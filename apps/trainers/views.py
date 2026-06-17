@@ -67,7 +67,10 @@ def autocomplete_view(request):
             
     return JsonResponse({'results': sorted(list(results))[:10]})
 
+from django_ratelimit.decorators import ratelimit
+
 @login_required
+@ratelimit(key='user', rate='5/m', block=True)
 def apply_trainer_view(request):
     # Only allow application if they haven't applied yet
     if request.user.status != TrainerStatus.REGISTERED:
@@ -103,6 +106,7 @@ def public_profile_view(request, username):
     return render(request, 'trainers/public_profile.html', {'profile': profile})
 
 @login_required
+@ratelimit(key='user', rate='10/m', block=True)
 def trainer_account_view(request):
     try:
         profile = request.user.trainer_profile
@@ -388,6 +392,7 @@ def post_list_view(request):
     return render(request, 'trainers/post_list.html', {'posts': page_obj})
 
 @login_required
+@ratelimit(key='user', rate='10/m', block=True)
 def post_create_view(request):
     try:
         profile = request.user.trainer_profile

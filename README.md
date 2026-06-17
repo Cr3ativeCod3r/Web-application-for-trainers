@@ -53,11 +53,21 @@ my_trainers_project/
 - **templates/static**: Location for global base HTML files, reusable components, and static assets (CSS, JS, Images). App-specific templates reside in their respective `apps/<app_name>/templates/` directories.
 - **media**: Where all user-provided data and photos reside (not committed to source control).
 
-## 🏗️ Architecture Showcase: Background Tasks
+## 🏗️ Architecture & Security Showcase
 
+### 1. Background Tasks (Celery + Redis)
 To ensure the application is scalable, highly responsive, and robust, **Celery** combined with **Redis** as a message broker is used to handle long-running background tasks. 
 * **Why this approach?** In standard synchronous Django views, triggering an email (e.g. account activation) freezes the user's HTTP request until the SMTP server successfully processes the email. This blocks the web thread and creates a poor user experience. 
 * **The Solution:** By decoupling email logic using the `@shared_task` decorator and `.delay()`, the application immediately acknowledges the registration and delegates the email sending process to a separate Celery worker running in the background. This is a common and highly valued pattern in mid/senior-level backend architecture, emphasizing separation of concerns and non-blocking I/O.
+
+### 2. Rate Limiting & Security
+To protect the application against Brute Force attacks, Credential Stuffing, and spam, a robust rate-limiting mechanism is implemented using the `django-ratelimit` library backed by a **Redis** cache.
+* **Global Cache Strategy:** Instead of relying on local memory (which resets and doesn't scale across multiple Gunicorn workers), the application uses the Redis container to accurately track request counts globally.
+* **Granular View Protection:** Specific limits are applied to vulnerable endpoints:
+  - **Authentication:** Max 5 login attempts per minute per IP, and max 5 attempts per specific username.
+  - **Registration:** Strictly limited to prevent bot-driven spam accounts.
+  - **Content Creation:** Limits applied to posting and updating profiles to prevent API abuse.
+* **Custom Middleware Handling:** When a user hits the limit, a custom Django Middleware intercepts the `Ratelimited` exception and gracefully redirects them to a dedicated, user-friendly 429 Error Page rather than throwing a raw 403 Forbidden error.
 
 ## 🚀 Future Roadmap & Development Ideas 
 

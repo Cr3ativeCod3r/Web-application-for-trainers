@@ -9,7 +9,7 @@ except ImportError:
 
 from .models import CustomUser, GoogleAccount
 
-# Wyrzucamy niepotrzebne modele z panelu admina
+# Unregister unnecessary models from the admin panel
 admin.site.unregister(Group)
 
 try:

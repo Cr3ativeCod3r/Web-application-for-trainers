@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center" style="margin-top: 100px; margin-bottom: 100px;">
+    <h1 style="color: #e53e3e; font-size: 3rem; margin-bottom: 20px;">Przekroczono limit zapytań</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 30px;">Zwolnij trochę! Wykryliśmy zbyt wiele zapytań w krótkim czasie z Twojego konta lub adresu IP.</p>
+    <p style="font-size: 1rem; color: #718096; margin-bottom: 40px;">Zabezpieczenia "Rate Limiting" blokują kolejne akcje. Odczekaj kilka minut przed ponowną próbą.</p>
+    <a href="/" class="btn" style="background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">Wróć na stronę główną</a>
+</div>
+{% endblock %}

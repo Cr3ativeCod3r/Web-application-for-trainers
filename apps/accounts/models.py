@@ -43,8 +43,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
-        verbose_name = "Konto normalne"
-        verbose_name_plural = "Konta zarejestrowane normalnie"
+        verbose_name = "Normal accounts"
+        verbose_name_plural = "Accounts registered normally"
 
     def __str__(self):
         return self.email
@@ -55,4 +55,4 @@ class GoogleAccount(SocialAccount):
     class Meta:
         proxy = True
         verbose_name = "Konto Google"
-        verbose_name_plural = "Konta zarejestrowane z Google"
+        verbose_name_plural = "Accounts registered via Google"
