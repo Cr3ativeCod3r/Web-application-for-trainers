@@ -26,6 +26,7 @@ services:
       - DB_USER=trainuser
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=redis://redis:6379/0
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@coachly.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER:-banaszekk123@gmail.com}
@@ -39,5 +40,33 @@ services:
              uv run python manage.py createadmin &&
              uv run python manage.py runserver 0.0.0.0:8000"
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DB_HOST=db
+      - DB_NAME=trainapp
+      - DB_USER=trainuser
+      - DB_PASS=${DB_PASS:-trainpass}
+      - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=redis://redis:6379/0
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-banaszekk123@gmail.com}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+    depends_on:
+      - db
+      - redis
+    command: >
+      sh -c "uv run celery -A core worker -l info"
+
 volumes:
   postgres_data:
+

@@ -13,6 +13,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 
 from .forms import TrainerRegistrationForm, CustomAuthenticationForm
+from .tasks import send_activation_email_task
 
 User = get_user_model()
 
@@ -48,22 +49,10 @@ class TrainerRegisterView(CreateView):
         user.is_active = False # Require email confirmation
         user.save()
         
-        current_site = get_current_site(self.request)
-        subject = 'Aktywuj swoje konto trenera'
-        message = render_to_string('emails/accounts/activation.txt', {
-            'user': user,
-            'domain': current_site.domain,
-            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-            'token': default_token_generator.make_token(user),
-        })
-        html_message = render_to_string('emails/accounts/activation.html', {
-            'user': user,
-            'domain': current_site.domain,
-            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-            'token': default_token_generator.make_token(user),
-        })
-        from django.conf import settings
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_message)
+        domain = self.request.get_host()
+        
+        # Zlecenie wysyłki e-maila w tle (Celery)
+        send_activation_email_task.delay(user.pk, domain)
         
         return redirect(self.success_url)
 

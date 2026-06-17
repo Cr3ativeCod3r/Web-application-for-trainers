@@ -42,5 +42,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
+    class Meta:
+        verbose_name = "Konto normalne"
+        verbose_name_plural = "Konta zarejestrowane normalnie"
+
     def __str__(self):
         return self.email
+
+from allauth.socialaccount.models import SocialAccount
+
+class GoogleAccount(SocialAccount):
+    class Meta:
+        proxy = True
+        verbose_name = "Konto Google"
+        verbose_name_plural = "Konta zarejestrowane z Google"

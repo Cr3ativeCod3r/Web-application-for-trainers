@@ -53,6 +53,12 @@ my_trainers_project/
 - **templates/static**: Location for global base HTML files, reusable components, and static assets (CSS, JS, Images). App-specific templates reside in their respective `apps/<app_name>/templates/` directories.
 - **media**: Where all user-provided data and photos reside (not committed to source control).
 
+## 🏗️ Architecture Showcase: Background Tasks
+
+To ensure the application is scalable, highly responsive, and robust, **Celery** combined with **Redis** as a message broker is used to handle long-running background tasks. 
+* **Why this approach?** In standard synchronous Django views, triggering an email (e.g. account activation) freezes the user's HTTP request until the SMTP server successfully processes the email. This blocks the web thread and creates a poor user experience. 
+* **The Solution:** By decoupling email logic using the `@shared_task` decorator and `.delay()`, the application immediately acknowledges the registration and delegates the email sending process to a separate Celery worker running in the background. This is a common and highly valued pattern in mid/senior-level backend architecture, emphasizing separation of concerns and non-blocking I/O.
+
 ## 🚀 Future Roadmap & Development Ideas 
 
 1. **Real-time Chat & WebSockets (Django Channels):** 
