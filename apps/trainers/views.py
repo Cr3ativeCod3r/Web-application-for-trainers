@@ -11,6 +11,9 @@ from django.http import JsonResponse
 from django.core.mail import send_mail
 from django.conf import settings
 
+from . import selectors
+from . import services
+
 def home_search_view(request):
     """
     View for the home search page with filtering capabilities.
@@ -19,16 +22,8 @@ def home_search_view(request):
     query_location = request.GET.get('location', '').strip()
     query_type = request.GET.get('type', '').strip()
     
-    trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
-    
-    if query_sport:
-        trainers = trainers.filter(sport__icontains=query_sport)
-    if query_location:
-        trainers = trainers.filter(location__icontains=query_location)
-    if query_type in ['ONLINE', 'STATIONARY']:
-        trainers = trainers.filter(Q(training_type=query_type) | Q(training_type='BOTH'))
-        
-    trainers = trainers.order_by('-created_at')
+    # Use selector to fetch trainers
+    trainers = selectors.search_trainers(query_sport, query_location, query_type)
     
     from django.core.paginator import Paginator
     paginator = Paginator(trainers, 12)
@@ -49,23 +44,10 @@ def autocomplete_view(request):
     q_type = request.GET.get('type', '')
     q = request.GET.get('q', '').strip().lower()
     
-    if not q or len(q) < 1:
-        return JsonResponse({'results': []})
-        
-    approved_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
-    results = set()
-    
-    if q_type == 'sport':
-        for profile in approved_profiles.filter(sport__icontains=q):
-            for sport in profile.sports_list:
-                if q in sport.lower():
-                    results.add(sport)
-    elif q_type == 'location':
-        locations = approved_profiles.filter(location__icontains=q).values_list('location', flat=True).distinct()
-        for loc in locations:
-            results.add(loc)
+    # Use selector for autocomplete
+    results = selectors.get_autocomplete_suggestions(q_type, q)
             
-    return JsonResponse({'results': sorted(list(results))[:10]})
+    return JsonResponse({'results': results})
 
 from django_ratelimit.decorators import ratelimit
 
@@ -81,12 +63,9 @@ def apply_trainer_view(request):
         form = TrainerApplicationForm(request.POST, request.FILES)
         if form.is_valid():
             profile = form.save(commit=False)
-            profile.user = request.user
-            profile.save()
             
-            # Change status to pending
-            request.user.status = TrainerStatus.PENDING_APPLICATION
-            request.user.save()
+            # Use service to apply
+            services.apply_for_trainer(request.user, profile)
             
             messages.success(request, "Twój wniosek został wysłany. Oczekuj na weryfikację!")
             return redirect('trainers:home_search')
@@ -170,34 +149,16 @@ def admin_dashboard_view(request):
     q_banned = request.GET.get('q_banned', '').strip()
     q_posts = request.GET.get('q_posts', '').strip()
 
-    pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION)
-    active_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
-    banned_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.BANNED)
-    pending_updates = TrainerProfileUpdate.objects.all()
-    all_posts = TrainerPost.objects.all()
+    # Use selector to get dashboard data
+    dashboard_data = selectors.get_admin_dashboard_data(
+        q_pending, q_active, q_updates, q_banned, q_posts
+    )
 
-    if q_pending:
-        pending_profiles = pending_profiles.filter(contact_email__icontains=q_pending)
-    if q_active:
-        active_profiles = active_profiles.filter(contact_email__icontains=q_active)
-    if q_updates:
-        pending_updates = pending_updates.filter(profile__contact_email__icontains=q_updates)
-    if q_banned:
-        banned_profiles = banned_profiles.filter(contact_email__icontains=q_banned)
-    if q_posts:
-        all_posts = all_posts.filter(title__icontains=q_posts)
-
-    pending_profiles = pending_profiles.order_by('-created_at')
-    active_profiles = active_profiles.order_by('-created_at')
-    pending_updates = pending_updates.order_by('-created_at')
-    banned_profiles = banned_profiles.order_by('-created_at')
-    all_posts = all_posts.order_by('-created_at')
-
-    paginator_pending = Paginator(pending_profiles, 12)
-    paginator_active = Paginator(active_profiles, 12)
-    paginator_updates = Paginator(pending_updates, 12)
-    paginator_banned = Paginator(banned_profiles, 12)
-    paginator_posts = Paginator(all_posts, 12)
+    paginator_pending = Paginator(dashboard_data['pending_profiles'], 12)
+    paginator_active = Paginator(dashboard_data['active_profiles'], 12)
+    paginator_updates = Paginator(dashboard_data['pending_updates'], 12)
+    paginator_banned = Paginator(dashboard_data['banned_profiles'], 12)
+    paginator_posts = Paginator(dashboard_data['all_posts'], 12)
 
     page_pending = request.GET.get('p_pending')
     page_active = request.GET.get('p_active')
@@ -222,40 +183,16 @@ def admin_dashboard_view(request):
 @staff_member_required
 def approve_trainer_view(request, profile_id):
     profile = TrainerProfile.objects.get(id=profile_id)
-    profile.user.status = TrainerStatus.APPROVED_TRAINER
-    profile.user.save()
+    # Use service to approve trainer
+    services.approve_trainer(profile)
     messages.success(request, f"Trener {profile.full_name} został zatwierdzony!")
     return redirect('trainers:admin_dashboard')
 
 @staff_member_required
 def approve_update_view(request, update_id):
     update_obj = TrainerProfileUpdate.objects.get(id=update_id)
-    profile = update_obj.profile
-    # Copy fields
-    profile.full_name = update_obj.full_name
-    profile.sport = update_obj.sport
-    profile.location = update_obj.location
-    profile.headline = update_obj.headline
-    profile.description = update_obj.description
-    profile.classes_description = update_obj.classes_description
-    profile.hourly_rate = update_obj.hourly_rate
-    profile.contact_email = update_obj.contact_email
-    profile.contact_phone = update_obj.contact_phone
-    if update_obj.profile_picture:
-        # Delete old profile picture from disk if a new one is uploaded
-        import os
-        if profile.profile_picture and profile.profile_picture != update_obj.profile_picture:
-            if os.path.isfile(profile.profile_picture.path):
-                try:
-                    os.remove(profile.profile_picture.path)
-                except Exception:
-                    pass
-        profile.profile_picture = update_obj.profile_picture
-    profile.instagram = update_obj.instagram
-    profile.facebook = update_obj.facebook
-    profile.tiktok = update_obj.tiktok
-    profile.save()
-    update_obj.delete()
+    # Use service to approve update
+    profile = services.approve_profile_update(update_obj)
     messages.success(request, f"Zmiany w profilu {profile.full_name} zostały zatwierdzone.")
     return redirect('trainers:admin_dashboard')
 
@@ -264,16 +201,9 @@ def reject_update_view(request, update_id):
     update_obj = TrainerProfileUpdate.objects.get(id=update_id)
     profile_name = update_obj.profile.full_name
     
-    # If rejected, delete the uploaded update file by user (if exists)
-    if update_obj.profile_picture:
-        import os
-        if os.path.isfile(update_obj.profile_picture.path):
-            try:
-                os.remove(update_obj.profile_picture.path)
-            except Exception:
-                pass
-                
-    update_obj.delete()
+    # Use service to reject update
+    services.reject_profile_update(update_obj)
+    
     messages.warning(request, f"Zmiany w profilu {profile_name} zostały odrzucone.")
     return redirect('trainers:admin_dashboard')
 
