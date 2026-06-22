@@ -3,7 +3,7 @@ import random
 from django.utils.text import slugify
 from faker import Faker
 
-from apps.trainers.models import TrainerProfile
+from apps.trainers.models import TrainerProfile, TrainerProfileUpdate, TrainerPost
 from apps.accounts.tests.factories import UserFactory
 
 fake = Faker('pl_PL')
@@ -39,3 +39,42 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
     hourly_rate = factory.LazyAttribute(lambda _: round(random.uniform(50.0, 250.0), 2))
     contact_email = factory.LazyAttribute(lambda obj: obj.user.email)
     contact_phone = factory.LazyAttribute(lambda _: fake.phone_number()[:15])
+
+
+class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = TrainerProfileUpdate
+
+    profile = factory.SubFactory(TrainerProfileFactory)
+    gender = factory.LazyAttribute(lambda _: random.choice(['M', 'F']))
+    
+    @factory.lazy_attribute
+    def full_name(self):
+        if self.gender == 'M':
+            return fake.first_name_male()
+        return fake.first_name_female()
+        
+    training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
+        
+    sport = factory.LazyAttribute(lambda _: random.choice([
+        'Trening personalny', 'Joga, Pilates', 'Boks', 'Pływanie', 
+        'Trening siłowy, Crossfit', 'Zumba, Taniec', 'Bieganie', 
+        'Sztuki walki', 'Kulturystyka'
+    ]))
+    location = factory.LazyAttribute(lambda _: fake.city())
+    headline = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
+    description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=500))
+    classes_description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=300))
+    hourly_rate = factory.LazyAttribute(lambda _: round(random.uniform(50.0, 250.0), 2))
+    contact_email = factory.LazyAttribute(lambda obj: obj.profile.user.email)
+    contact_phone = factory.LazyAttribute(lambda _: fake.phone_number()[:15])
+
+
+class TrainerPostFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = TrainerPost
+
+    trainer = factory.SubFactory(TrainerProfileFactory)
+    title = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
+    content = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=1000))
+
