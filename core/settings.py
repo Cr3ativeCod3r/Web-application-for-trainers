@@ -12,7 +12,7 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(=+dp(si1)ucdw(o@k9$@9@(hkvk-*52!jpo@4nydxyz4rgg@b')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = str(os.environ.get('DEBUG', 'True')).lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS = ['*']
 
@@ -23,6 +23,7 @@ LOCAL_APPS = [
     'apps.accounts',
     'apps.trainers',
     'apps.pages',
+    'apps.admin_dashboard',
 ]
 
 INSTALLED_APPS = [

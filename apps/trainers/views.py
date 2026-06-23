@@ -1,18 +1,18 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import TrainerProfile
 from .forms import TrainerApplicationForm
 from apps.accounts.models import TrainerStatus
 
-from django.db.models import Q
 from django.http import JsonResponse
-from django.core.mail import send_mail
-from django.conf import settings
 
 from . import selectors
 from . import services
+
+from django_ratelimit.decorators import ratelimit
+
 
 def home_search_view(request):
     """
@@ -49,7 +49,6 @@ def autocomplete_view(request):
             
     return JsonResponse({'results': results})
 
-from django_ratelimit.decorators import ratelimit
 
 @login_required
 @ratelimit(key='user', rate='5/m', block=True)
@@ -74,11 +73,10 @@ def apply_trainer_view(request):
 
     return render(request, 'trainers/apply.html', {'form': form})
 
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import get_object_or_404
-from .forms import TrainerApplicationForm, TrainerProfileUpdateForm
-from .models import TrainerProfile, TrainerProfileUpdate
+
+from .forms import TrainerProfileUpdateForm
+from .models import TrainerProfileUpdate
+
 
 def public_profile_view(request, username):
     profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
@@ -139,101 +137,6 @@ def trainer_account_view(request):
 
     return render(request, 'trainers/account.html', {'form': form, 'pending_update': pending_update, 'profile': profile})
 
-from django.core.paginator import Paginator
-
-@staff_member_required
-def admin_dashboard_view(request):
-    q_pending = request.GET.get('q_pending', '').strip()
-    q_active = request.GET.get('q_active', '').strip()
-    q_updates = request.GET.get('q_updates', '').strip()
-    q_banned = request.GET.get('q_banned', '').strip()
-    q_posts = request.GET.get('q_posts', '').strip()
-
-    # Use selector to get dashboard data
-    dashboard_data = selectors.get_admin_dashboard_data(
-        q_pending, q_active, q_updates, q_banned, q_posts
-    )
-
-    paginator_pending = Paginator(dashboard_data['pending_profiles'], 12)
-    paginator_active = Paginator(dashboard_data['active_profiles'], 12)
-    paginator_updates = Paginator(dashboard_data['pending_updates'], 12)
-    paginator_banned = Paginator(dashboard_data['banned_profiles'], 12)
-    paginator_posts = Paginator(dashboard_data['all_posts'], 12)
-
-    page_pending = request.GET.get('p_pending')
-    page_active = request.GET.get('p_active')
-    page_updates = request.GET.get('p_updates')
-    page_banned = request.GET.get('p_banned')
-    page_posts = request.GET.get('p_posts')
-
-    context = {
-        'pending_profiles': paginator_pending.get_page(page_pending),
-        'active_profiles': paginator_active.get_page(page_active),
-        'pending_updates': paginator_updates.get_page(page_updates),
-        'banned_profiles': paginator_banned.get_page(page_banned),
-        'all_posts': paginator_posts.get_page(page_posts),
-        'q_pending': q_pending,
-        'q_active': q_active,
-        'q_updates': q_updates,
-        'q_banned': q_banned,
-        'q_posts': q_posts,
-    }
-    return render(request, 'trainers/admin_dashboard.html', context)
-
-@staff_member_required
-def approve_trainer_view(request, profile_id):
-    profile = TrainerProfile.objects.get(id=profile_id)
-    # Use service to approve trainer
-    services.approve_trainer(profile)
-    messages.success(request, f"Trener {profile.full_name} został zatwierdzony!")
-    return redirect('trainers:admin_dashboard')
-
-@staff_member_required
-def approve_update_view(request, update_id):
-    update_obj = TrainerProfileUpdate.objects.get(id=update_id)
-    # Use service to approve update
-    profile = services.approve_profile_update(update_obj)
-    messages.success(request, f"Zmiany w profilu {profile.full_name} zostały zatwierdzone.")
-    return redirect('trainers:admin_dashboard')
-
-@staff_member_required
-def reject_update_view(request, update_id):
-    update_obj = TrainerProfileUpdate.objects.get(id=update_id)
-    profile_name = update_obj.profile.full_name
-    
-    # Use service to reject update
-    services.reject_profile_update(update_obj)
-    
-    messages.warning(request, f"Zmiany w profilu {profile_name} zostały odrzucone.")
-    return redirect('trainers:admin_dashboard')
-
-@staff_member_required
-def admin_profile_preview_view(request, profile_id):
-    profile = get_object_or_404(TrainerProfile, id=profile_id)
-    return render(request, 'trainers/public_profile.html', {'profile': profile, 'is_preview': True})
-
-@staff_member_required
-def admin_update_preview_view(request, update_id):
-    update_obj = get_object_or_404(TrainerProfileUpdate, id=update_id)
-    profile = update_obj.profile
-    
-    # Swap data in memory for preview (do not save)
-    profile.full_name = update_obj.full_name
-    profile.sport = update_obj.sport
-    profile.location = update_obj.location
-    profile.headline = update_obj.headline
-    profile.description = update_obj.description
-    profile.classes_description = update_obj.classes_description
-    profile.hourly_rate = update_obj.hourly_rate
-    profile.contact_email = update_obj.contact_email
-    profile.contact_phone = update_obj.contact_phone
-    if update_obj.profile_picture:
-        profile.profile_picture = update_obj.profile_picture
-    profile.instagram = update_obj.instagram
-    profile.facebook = update_obj.facebook
-    profile.tiktok = update_obj.tiktok
-    
-    return render(request, 'trainers/public_profile.html', {'profile': profile, 'is_preview': True})
 
 from django.contrib.auth import logout
 
@@ -266,44 +169,9 @@ def delete_account_view(request):
     return redirect('trainers:account')
 
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def ban_trainer_view(request, profile_id):
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        user = profile.user
-        user.is_active = False
-        user.status = 'BANNED'
-        user.save()
-        messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
-    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
-
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def delete_trainer_view(request, profile_id):
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        full_name = profile.full_name
-        user = profile.user
-        user.delete()
-        messages.success(request, f"Konto trenera {full_name} zostało trwale usunięte.")
-    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
-
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def unban_trainer_view(request, profile_id):
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        user = profile.user
-        user.is_active = True
-        user.status = 'APPROVED_TRAINER'
-        user.save()
-        messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
-    return redirect(reverse('trainers:admin_dashboard') + '?tab=active')
-
 from .models import TrainerPost
 from .forms import TrainerPostForm
-from django.utils.text import slugify
+from django.core.paginator import Paginator
 
 @login_required
 def post_list_view(request):
@@ -385,14 +253,3 @@ def public_post_view(request, username, slug):
     post = get_object_or_404(TrainerPost, trainer=profile, slug=slug)
     
     return render(request, 'trainers/public_post.html', {'profile': profile, 'post': post})
-
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def admin_delete_post_view(request, post_id):
-    if request.method == 'POST':
-        post = get_object_or_404(TrainerPost, id=post_id)
-        title = post.title
-        post.delete()
-        messages.success(request, f"Post '{title}' został usunięty.")
-    return redirect(reverse('trainers:admin_dashboard') + '?tab=posts')
-

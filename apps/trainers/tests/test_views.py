@@ -92,23 +92,3 @@ class TestTrainersViews:
         response = client.get(url)
         assert response.status_code == 200
         assert response.context['profile'] == profile
-
-    def test_admin_dashboard_staff_only(self, client):
-        """Test that non-staff users cannot access admin dashboard."""
-        user = UserFactory(is_staff=False, is_active=True)
-        client.force_login(user)
-
-        url = reverse('trainers:admin_dashboard')
-        response = client.get(url)
-        assert response.status_code == 302
-        assert 'admin/login' in response.url
-
-    def test_admin_dashboard_success_for_staff(self, client):
-        """Test that staff users can access admin dashboard."""
-        admin = UserFactory(is_staff=True, is_active=True, status=TrainerStatus.ADMIN)
-        client.force_login(admin)
-
-        url = reverse('trainers:admin_dashboard')
-        response = client.get(url)
-        assert response.status_code == 200
-        assert 'pending_profiles' in response.context

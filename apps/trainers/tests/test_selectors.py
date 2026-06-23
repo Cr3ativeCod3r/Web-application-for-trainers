@@ -1,12 +1,11 @@
 import pytest
 from apps.accounts.tests.factories import UserFactory
 from apps.accounts.models import TrainerStatus
-from apps.trainers.tests.factories import TrainerProfileFactory, TrainerProfileUpdateFactory, TrainerPostFactory
+from apps.trainers.tests.factories import TrainerProfileFactory
 from apps.trainers.selectors import (
     get_approved_trainers,
     search_trainers,
     get_autocomplete_suggestions,
-    get_admin_dashboard_data,
 )
 
 @pytest.mark.django_db
@@ -70,32 +69,3 @@ class TestTrainersSelectors:
         # Autocomplete location
         suggestions = get_autocomplete_suggestions('location', 'warsz')
         assert "Warszawa" in suggestions
-
-    def test_get_admin_dashboard_data(self):
-        """Test admin dashboard filters data properly."""
-        user_p = UserFactory(status=TrainerStatus.PENDING_APPLICATION, email="pending@test.com")
-        TrainerProfileFactory(user=user_p)
-
-        user_a = UserFactory(status=TrainerStatus.APPROVED_TRAINER, email="active@test.com")
-        profile_a = TrainerProfileFactory(user=user_a)
-
-        user_b = UserFactory(status=TrainerStatus.BANNED, email="banned@test.com")
-        TrainerProfileFactory(user=user_b)
-
-        update = TrainerProfileUpdateFactory(profile=profile_a)
-        post = TrainerPostFactory(trainer=profile_a, title="Wspanialy post")
-
-        dashboard_data = get_admin_dashboard_data()
-
-        assert dashboard_data['pending_profiles'].count() == 1
-        assert dashboard_data['active_profiles'].count() == 1
-        assert dashboard_data['banned_profiles'].count() == 1
-        assert dashboard_data['pending_updates'].count() == 1
-        assert dashboard_data['all_posts'].count() == 1
-
-        # Test search filtering
-        filtered_data = get_admin_dashboard_data(q_active="active@test.com")
-        assert filtered_data['active_profiles'].count() == 1
-
-        filtered_data = get_admin_dashboard_data(q_active="nonexistent")
-        assert filtered_data['active_profiles'].count() == 0

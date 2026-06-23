@@ -9,7 +9,7 @@
         <nav class="flex items-center space-x-4">
             {% if user.is_authenticated %}
                 {% if user.is_superuser %}
-                    <a href="{% url 'trainers:admin_dashboard' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hidden md:inline-block">
+                    <a href="{% url 'admin_dashboard:dashboard' %}" class="bg-primary hover:bg-primary-hover text-navy font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 hidden md:inline-block">
                         Zarządzaj trenerami
                     </a>
                 {% elif user.status == 'REGISTERED' %}
