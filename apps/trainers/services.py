@@ -35,7 +35,7 @@ def approve_profile_update(update_obj: TrainerProfileUpdate) -> TrainerProfile:
     with transaction.atomic():
         # Copy fields from update object to the main profile
         profile.full_name = update_obj.full_name
-        profile.sport = update_obj.sport
+        profile.sports.set(update_obj.sports.all())
         profile.location = update_obj.location
         profile.headline = update_obj.headline
         profile.description = update_obj.description

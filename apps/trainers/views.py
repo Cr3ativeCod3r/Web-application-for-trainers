@@ -65,6 +65,7 @@ def apply_trainer_view(request):
             
             # Use service to apply
             services.apply_for_trainer(request.user, profile)
+            form.save_m2m()
             
             messages.success(request, "Twój wniosek został wysłany. Oczekuj na weryfikację!")
             return redirect('trainers:home_search')
@@ -108,6 +109,7 @@ def trainer_account_view(request):
             update_obj = form.save(commit=False)
             update_obj.profile = profile
             update_obj.save()
+            form.save_m2m()
             messages.success(request, "Twoje zmiany zostały zapisane i oczekują na akceptację administratora.")
             return redirect('trainers:account')
     else:
@@ -118,7 +120,7 @@ def trainer_account_view(request):
             # We need to create an instance-like dictionary or just use initial
             initial_data = {
                 'full_name': profile.full_name,
-                'sport': profile.sport,
+                'sports': profile.sports.all(),
                 'location': profile.location,
                 'headline': profile.headline,
                 'description': profile.description,

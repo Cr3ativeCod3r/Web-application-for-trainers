@@ -24,14 +24,20 @@ class TestTrainersSelectors:
 
     def test_search_trainers(self):
         """Test searching trainers by sport, location, and type."""
+        from apps.trainers.models import Sport
+        sport_joga = Sport.objects.create(name="Joga")
+        sport_pilates = Sport.objects.create(name="Pilates")
+        sport_boks = Sport.objects.create(name="Boks")
+        sport_crossfit = Sport.objects.create(name="Crossfit")
+
         u1 = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        p1 = TrainerProfileFactory(user=u1, sport="Joga, Pilates", location="Warszawa", training_type="ONLINE")
+        p1 = TrainerProfileFactory(user=u1, sports=[sport_joga, sport_pilates], location="Warszawa", training_type="ONLINE")
 
         u2 = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        p2 = TrainerProfileFactory(user=u2, sport="Boks", location="Krakow", training_type="STATIONARY")
+        p2 = TrainerProfileFactory(user=u2, sports=[sport_boks], location="Krakow", training_type="STATIONARY")
 
         u3 = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        p3 = TrainerProfileFactory(user=u3, sport="Boks, Crossfit", location="Warszawa", training_type="BOTH")
+        p3 = TrainerProfileFactory(user=u3, sports=[sport_boks, sport_crossfit], location="Warszawa", training_type="BOTH")
 
         # 1. Search by sport
         results = search_trainers(sport="Boks")
@@ -56,11 +62,16 @@ class TestTrainersSelectors:
 
     def test_get_autocomplete_suggestions(self):
         """Test autocomplete suggestions for sports and locations."""
+        from apps.trainers.models import Sport
+        sport_pilates = Sport.objects.create(name="Pilates")
+        sport_joga = Sport.objects.create(name="Joga")
+        sport_rozciaganie = Sport.objects.create(name="Rozciaganie")
+
         u1 = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        TrainerProfileFactory(user=u1, sport="Pilates, Joga", location="Warszawa")
+        TrainerProfileFactory(user=u1, sports=[sport_pilates, sport_joga], location="Warszawa")
 
         u2 = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        TrainerProfileFactory(user=u2, sport="Joga, Rozciaganie", location="Wroclaw")
+        TrainerProfileFactory(user=u2, sports=[sport_joga, sport_rozciaganie], location="Wroclaw")
 
         # Autocomplete sport
         suggestions = get_autocomplete_suggestions('sport', 'joga')

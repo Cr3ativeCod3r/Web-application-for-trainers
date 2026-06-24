@@ -9,6 +9,7 @@ class TrainerApplicationForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
             'classes_description': forms.Textarea(attrs={'rows': 4}),
             'profile_picture': forms.FileInput(attrs={'accept': 'image/png'}),
+            'sports': forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -42,6 +43,7 @@ class TrainerProfileUpdateForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
             'classes_description': forms.Textarea(attrs={'rows': 4}),
             'profile_picture': forms.FileInput(attrs={'accept': 'image/png'}),
+            'sports': forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):

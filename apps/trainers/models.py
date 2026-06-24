@@ -1,12 +1,31 @@
 from django.db import models
 from django.conf import settings
 
+from django.utils.text import slugify
+
+class Sport(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name="Nazwa sportu")
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Dyscyplina sportowa"
+        verbose_name_plural = "Dyscypliny sportowe"
+        ordering = ['name']
+
 class TrainerProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trainer_profile')
     username = models.SlugField(max_length=255, unique=True, verbose_name="Nazwa użytkownika (będzie w URL profilu)")
     
     full_name = models.CharField(max_length=255, verbose_name="Imię")
-    sport = models.CharField(max_length=255, verbose_name="Dyscypliny (oddziel przecinkami)", help_text="Np. Joga, Boks, Trening personalny")
+    sports = models.ManyToManyField(Sport, related_name='trainers', verbose_name="Dyscypliny", blank=True)
     location = models.CharField(max_length=255, verbose_name="Lokalizacja zajęć")
     headline = models.CharField(max_length=255, verbose_name="Header (Nagłówek profilu)")
     description = models.TextField(verbose_name="Opis")
@@ -38,12 +57,6 @@ class TrainerProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    @property
-    def sports_list(self):
-        if not self.sport:
-            return []
-        return [s.strip() for s in self.sport.split(',') if s.strip()]
-
     def __str__(self):
         return f"{self.full_name} ({self.user.email})"
 
@@ -51,7 +64,7 @@ class TrainerProfileUpdate(models.Model):
     profile = models.OneToOneField(TrainerProfile, on_delete=models.CASCADE, related_name='pending_update')
     
     full_name = models.CharField(max_length=255, verbose_name="Imię")
-    sport = models.CharField(max_length=255, verbose_name="Dyscypliny (oddziel przecinkami)", help_text="Np. Joga, Boks, Trening personalny")
+    sports = models.ManyToManyField(Sport, related_name='profile_updates', verbose_name="Dyscypliny", blank=True)
     location = models.CharField(max_length=255, verbose_name="Lokalizacja zajęć")
     headline = models.CharField(max_length=255, verbose_name="Krótki nagłówek profilu (np. Trener Personalny)")
     description = models.TextField(verbose_name="Opis")
@@ -79,12 +92,6 @@ class TrainerProfileUpdate(models.Model):
     training_type = models.CharField(max_length=15, choices=TRAINING_TYPE_CHOICES, verbose_name="Typ zajęć", default='STATIONARY')
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    @property
-    def sports_list(self):
-        if not self.sport:
-            return []
-        return [s.strip() for s in self.sport.split(',') if s.strip()]
 
     def __str__(self):
         return f"Oczekująca zmiana: {self.full_name}"

@@ -17,8 +17,10 @@ class TestTrainersViews:
     def test_autocomplete_view_sport(self, client):
         """Test autocomplete endpoint returns JSON data."""
         # Create approved trainer to show up in suggestions
+        from apps.trainers.models import Sport
+        sport_bieganie = Sport.objects.create(name="Bieganie")
         u = UserFactory(status=TrainerStatus.APPROVED_TRAINER)
-        TrainerProfileFactory(user=u, sport="Bieganie")
+        TrainerProfileFactory(user=u, sports=[sport_bieganie])
 
         url = reverse('trainers:autocomplete')
         response = client.get(url, {'type': 'sport', 'q': 'bieg'})

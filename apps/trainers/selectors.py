@@ -14,7 +14,7 @@ def search_trainers(sport: str = '', location: str = '', training_type: str = ''
     trainers = get_approved_trainers()
     
     if sport:
-        trainers = trainers.filter(sport__icontains=sport)
+        trainers = trainers.filter(sports__name__icontains=sport).distinct()
     if location:
         trainers = trainers.filter(location__icontains=location)
     if training_type in ['ONLINE', 'STATIONARY']:
@@ -30,16 +30,18 @@ def get_autocomplete_suggestions(q_type: str, query: str) -> list[str]:
         return []
         
     approved_profiles = get_approved_trainers()
-    results: Set[str] = set()
     
     if q_type == 'sport':
-        for profile in approved_profiles.filter(sport__icontains=query):
-            for sport in profile.sports_list:
-                if query in sport.lower():
-                    results.add(sport)
+        from .models import Sport
+        # Filter sports that are related to approved profiles and match query
+        sports = Sport.objects.filter(
+            name__icontains=query,
+            trainers__in=approved_profiles
+        ).values_list('name', flat=True).distinct()
+        return list(sports)[:10]
+        
     elif q_type == 'location':
         locations = approved_profiles.filter(location__icontains=query).values_list('location', flat=True).distinct()
-        for loc in locations:
-            results.add(loc)
+        return list(locations)[:10]
             
-    return sorted(list(results))[:10]
+    return []

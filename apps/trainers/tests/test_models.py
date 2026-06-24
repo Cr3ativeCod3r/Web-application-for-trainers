@@ -4,15 +4,6 @@ from apps.trainers.models import TrainerPost
 
 @pytest.mark.django_db
 class TestTrainerProfileModel:
-    def test_sports_list_property(self):
-        """Test that sports_list split comma-separated sports correctly."""
-        profile = TrainerProfileFactory.build(sport="Joga, Boks, Trening personalny")
-        assert profile.sports_list == ["Joga", "Boks", "Trening personalny"]
-
-    def test_sports_list_empty(self):
-        """Test that sports_list returns empty list when sport is empty."""
-        profile = TrainerProfileFactory.build(sport="")
-        assert profile.sports_list == []
 
     def test_string_representation(self):
         """Test the __str__ representation of TrainerProfile."""

@@ -34,13 +34,11 @@ def quiz_view(request):
     return render(request, 'pages/quiz.html')
 
 import json
-import os
-from google import genai
-from google.genai import types
 from django.http import JsonResponse
-
+from django.urls import reverse
 from apps.trainers.models import TrainerProfile
 from apps.accounts.models import TrainerStatus
+from .services import get_ai_sport_recommendation, AIServiceError
 
 def quiz_submit_api(request):
     if request.method == 'POST':
@@ -51,78 +49,43 @@ def quiz_submit_api(request):
             if not answers:
                 return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
                 
-            # Query all active trainers to find available sports
-            approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
-            available_sports = set()
-            for trainer in approved_trainers:
-                available_sports.update(trainer.sports_list)
+            from apps.trainers.models import Sport
+            available_sports = list(Sport.objects.filter(trainers__in=approved_trainers).values_list('name', flat=True).distinct())
             
-            sports_str = ", ".join(sorted(list(available_sports))) if available_sports else "Brak sportów w bazie"
-            
-            prompt = f"""Na podstawie poniższych odpowiedzi użytkownika na 13 pytań, doradź mu jaki sport będzie dla niego najlepszy.
-Z poniższej listy sportów (to dyscypliny oferowane przez naszych trenerów), wybierz JEDEN, który najlepiej pasuje: [{sports_str}]. 
-Jeśli żaden nie pasuje w 100%, wybierz ten najbliższy prawdy. 
-
-Zwróć odpowiedź WYŁĄCZNIE jako poprawny obiekt JSON (bez markdown block) o strukturze:
-{{
-  "text": "Twój motywujący tekst (2-3 akapity). Pisz jako profesjonalny trener.",
-  "suggested_sport": "Dokładna nazwa wybranego sportu z listy"
-}}
-
-Odpowiedzi użytkownika:
-"""
-            for item in answers:
-                prompt += f"Pytanie: {item.get('question')}\nOdpowiedź: {item.get('answer')}\n\n"
-                
-            api_key = os.environ.get('API_GEMINI') or os.environ.get('api_gemini')
-            if not api_key:
-                return JsonResponse({'error': 'Brak klucza API Gemini w konfiguracji serwera.'}, status=500)
-                
-            client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
-                model='gemini-3.5-flash',
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
-            )
-            
-            # Parse JSON
             try:
-                response_text = response.text.strip()
-                if response_text.startswith('```json'):
-                    response_text = response_text[7:-3].strip()
-                elif response_text.startswith('```'):
-                    response_text = response_text[3:-3].strip()
-                
-                result_data = json.loads(response_text)
-                ai_text = result_data.get('text', 'Błąd w formacie tekstu.')
-                suggested_sport = result_data.get('suggested_sport', '')
-            except Exception as e:
-                return JsonResponse({'error': 'Model zwrócił nieprawidłowy format (oczekiwano JSON). ' + str(e)}, status=500)
+                ai_result = get_ai_sport_recommendation(answers, available_sports)
+            except AIServiceError as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error("AI Service Error: %s", str(e), exc_info=True)
+                return JsonResponse({'error': str(e)}, status=500)
+            
+            suggested_sport = ai_result.get('suggested_sport', '')
             
             # Find recommended trainers
             recommended_trainers = []
             if suggested_sport:
-                matched_trainers = approved_trainers.filter(sport__icontains=suggested_sport)[:3]
+                matched_trainers = approved_trainers.filter(sports__name__icontains=suggested_sport).distinct()[:3]
                 for t in matched_trainers:
-                    from django.urls import reverse
                     recommended_trainers.append({
                         'name': t.full_name,
-                        'sport': t.sport,
+                        'sport': ", ".join([s.name for s in t.sports.all()]),
                         'url': reverse('trainers:public_profile', kwargs={'username': t.username}),
                         'location': t.location,
                         'type': t.get_training_type_display()
                     })
             
             return JsonResponse({
-                'recommendation': ai_text,
+                'recommendation': ai_result.get('recommendation', ''),
                 'suggested_sport': suggested_sport,
                 'trainers': recommended_trainers
             })
             
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error("Unexpected error in quiz_submit_api: %s", str(e), exc_info=True)
+            return JsonResponse({'error': 'Wystąpił nieoczekiwany błąd serwera.'}, status=500)
             
     return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
 

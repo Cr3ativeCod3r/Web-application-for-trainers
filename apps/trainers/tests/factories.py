@@ -27,11 +27,6 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
         
     training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
         
-    sport = factory.LazyAttribute(lambda _: random.choice([
-        'Trening personalny', 'Joga, Pilates', 'Boks', 'Pływanie', 
-        'Trening siłowy, Crossfit', 'Zumba, Taniec', 'Bieganie', 
-        'Sztuki walki', 'Kulturystyka'
-    ]))
     location = factory.LazyAttribute(lambda _: fake.city())
     headline = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
     description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=500))
@@ -39,6 +34,24 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
     hourly_rate = factory.LazyAttribute(lambda _: round(random.uniform(50.0, 250.0), 2))
     contact_email = factory.LazyAttribute(lambda obj: obj.user.email)
     contact_phone = factory.LazyAttribute(lambda _: fake.phone_number()[:15])
+
+    @factory.post_generation
+    def sports(self, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for sport in extracted:
+                self.sports.add(sport)
+        else:
+            from apps.trainers.models import Sport
+            sport_name = random.choice([
+                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie', 
+                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie', 
+                'Sztuki walki', 'Kulturystyka'
+            ])
+            sport_obj, _ = Sport.objects.get_or_create(name=sport_name)
+            self.sports.add(sport_obj)
 
 
 class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
@@ -56,11 +69,6 @@ class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
         
     training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
         
-    sport = factory.LazyAttribute(lambda _: random.choice([
-        'Trening personalny', 'Joga, Pilates', 'Boks', 'Pływanie', 
-        'Trening siłowy, Crossfit', 'Zumba, Taniec', 'Bieganie', 
-        'Sztuki walki', 'Kulturystyka'
-    ]))
     location = factory.LazyAttribute(lambda _: fake.city())
     headline = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
     description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=500))
@@ -68,6 +76,24 @@ class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
     hourly_rate = factory.LazyAttribute(lambda _: round(random.uniform(50.0, 250.0), 2))
     contact_email = factory.LazyAttribute(lambda obj: obj.profile.user.email)
     contact_phone = factory.LazyAttribute(lambda _: fake.phone_number()[:15])
+
+    @factory.post_generation
+    def sports(self, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for sport in extracted:
+                self.sports.add(sport)
+        else:
+            from apps.trainers.models import Sport
+            sport_name = random.choice([
+                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie', 
+                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie', 
+                'Sztuki walki', 'Kulturystyka'
+            ])
+            sport_obj, _ = Sport.objects.get_or_create(name=sport_name)
+            self.sports.add(sport_obj)
 
 
 class TrainerPostFactory(factory.django.DjangoModelFactory):
