@@ -96,8 +96,8 @@
                     <div class="text-left px-1">
                         <!-- Sports Badges -->
                         <div class="flex flex-wrap gap-1.5 mb-2">
-                            {% for sport in trainer.sports_list %}
-                                <span class="bg-primary/10 text-primary-hover border border-primary/20 text-[10px] md:text-xs font-bold px-2 py-0.5 md:py-1 rounded-md">{{ sport }}</span>
+                            {% for sport in trainer.sports.all %}
+                                <span class="bg-primary/10 text-primary-hover border border-primary/20 text-[10px] md:text-xs font-bold px-2 py-0.5 md:py-1 rounded-md">{{ sport.name }}</span>
                             {% endfor %}
                         </div>
                         

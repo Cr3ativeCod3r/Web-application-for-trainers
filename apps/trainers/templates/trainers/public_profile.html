@@ -29,9 +29,9 @@
             
             <div class="flex-1 text-center md:text-left">
                 <div class="flex flex-wrap gap-2 mb-3 justify-center md:justify-start">
-                    {% for sport in profile.sports_list %}
+                    {% for sport in profile.sports.all %}
                     <span class="inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full uppercase tracking-wider">
-                        {{ sport }}
+                        {{ sport.name }}
                     </span>
                     {% endfor %}
                 </div>
