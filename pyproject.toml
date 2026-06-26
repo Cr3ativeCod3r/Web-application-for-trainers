@@ -17,6 +17,7 @@ dependencies = [
     "redis>=8.0.0",
     "django-ratelimit>=4.1.0",
     "django-cleanup>=9.0.0",
+    "django-autoslug>=1.9.9",
 ]
 
 [dependency-groups]

@@ -2,15 +2,11 @@ from django.db import models
 from django.conf import settings
 
 from django.utils.text import slugify
+from autoslug import AutoSlugField
 
 class Sport(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Nazwa sportu")
-    slug = models.SlugField(max_length=100, unique=True, blank=True)
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().save(*args, **kwargs)
+    slug = AutoSlugField(populate_from='name', unique=True, max_length=100)
 
     def __str__(self):
         return self.name
@@ -99,7 +95,7 @@ class TrainerProfileUpdate(models.Model):
 class TrainerPost(models.Model):
     trainer = models.ForeignKey(TrainerProfile, on_delete=models.CASCADE, related_name='posts')
     title = models.CharField(max_length=255, verbose_name="Tytuł posta")
-    slug = models.SlugField(max_length=255, unique=True, verbose_name="Slug (URL)", blank=True)
+    slug = AutoSlugField(populate_from='title', unique=True, max_length=255, verbose_name="Slug (URL)")
     image = models.ImageField(upload_to='post_images/', verbose_name="Zdjęcie", blank=True, null=True)
     content = models.TextField(verbose_name="Treść posta")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data dodania")
@@ -108,15 +104,7 @@ class TrainerPost(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-    def save(self, *args, **kwargs):
-        base_slug = slugify(self.title)
-        slug = base_slug
-        counter = 1
-        while TrainerPost.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-        self.slug = slug
-        super().save(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.title} - {self.trainer.full_name}"
