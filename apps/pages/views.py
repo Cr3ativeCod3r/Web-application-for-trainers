@@ -2,6 +2,18 @@ from django.shortcuts import render, redirect
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
+from django.template.loader import render_to_string
+import json
+import logging
+from django.http import JsonResponse
+from django.urls import reverse
+from django.core.paginator import Paginator
+
+from apps.trainers.models import TrainerProfile, TrainerPost, Sport
+from apps.accounts.models import TrainerStatus
+from .services import get_ai_sport_recommendation, AIServiceError
+
+logger = logging.getLogger(__name__)
 
 def about_view(request):
     return render(request, 'pages/about.html')
@@ -12,7 +24,8 @@ def contact_view(request):
         email = request.POST.get('email')
         message = request.POST.get('message')
         
-        full_message = f"Wiadomość od: {name} ({email})\n\n{message}"
+        context = {'name': name, 'email': email, 'message': message}
+        full_message = render_to_string('pages/emails/contact_form.txt', context)
         
         send_mail(
             subject=f"Nowa wiadomość z formularza kontaktowego Coachly od {name}",
@@ -33,13 +46,6 @@ def privacy_view(request):
 def quiz_view(request):
     return render(request, 'pages/quiz.html')
 
-import json
-from django.http import JsonResponse
-from django.urls import reverse
-from apps.trainers.models import TrainerProfile
-from apps.accounts.models import TrainerStatus
-from .services import get_ai_sport_recommendation, AIServiceError
-
 def quiz_submit_api(request):
     if request.method == 'POST':
         try:
@@ -49,14 +55,12 @@ def quiz_submit_api(request):
             if not answers:
                 return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
                 
-            from apps.trainers.models import Sport
+            approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
             available_sports = list(Sport.objects.filter(trainers__in=approved_trainers).values_list('name', flat=True).distinct())
             
             try:
                 ai_result = get_ai_sport_recommendation(answers, available_sports)
             except AIServiceError as e:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error("AI Service Error: %s", str(e), exc_info=True)
                 return JsonResponse({'error': str(e)}, status=500)
             
@@ -82,15 +86,10 @@ def quiz_submit_api(request):
             })
             
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error("Unexpected error in quiz_submit_api: %s", str(e), exc_info=True)
             return JsonResponse({'error': 'Wystąpił nieoczekiwany błąd serwera.'}, status=500)
             
     return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
-
-from django.core.paginator import Paginator
-from apps.trainers.models import TrainerPost
 
 def knowledge_base_view(request):
     query = request.GET.get('q', '').strip()

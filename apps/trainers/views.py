@@ -12,8 +12,11 @@ from . import selectors
 from . import services
 
 from django_ratelimit.decorators import ratelimit
-
-
+from django.core.paginator import Paginator
+from django.contrib.auth import logout
+from .forms import TrainerProfileUpdateForm, TrainerPostForm
+from .models import TrainerProfileUpdate, TrainerPost
+import os
 def home_search_view(request):
     """
     View for the home search page with filtering capabilities.
@@ -25,7 +28,6 @@ def home_search_view(request):
     # Use selector to fetch trainers
     trainers = selectors.search_trainers(query_sport, query_location, query_type)
     
-    from django.core.paginator import Paginator
     paginator = Paginator(trainers, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -75,9 +77,6 @@ def apply_trainer_view(request):
     return render(request, 'trainers/apply.html', {'form': form})
 
 
-from .forms import TrainerProfileUpdateForm
-from .models import TrainerProfileUpdate
-
 
 def public_profile_view(request, username):
     profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
@@ -97,15 +96,7 @@ def trainer_account_view(request):
     if request.method == 'POST':
         form = TrainerProfileUpdateForm(request.POST, request.FILES, instance=pending_update)
         if form.is_valid():
-            # Delete old pending picture if a new one is uploaded
-            if 'profile_picture' in request.FILES and pending_update and pending_update.profile_picture:
-                import os
-                if os.path.isfile(pending_update.profile_picture.path):
-                    try:
-                        os.remove(pending_update.profile_picture.path)
-                    except Exception:
-                        pass
-                        
+            # The old image deletion is now handled automatically by django-cleanup.
             update_obj = form.save(commit=False)
             update_obj.profile = profile
             update_obj.save()
@@ -140,7 +131,6 @@ def trainer_account_view(request):
     return render(request, 'trainers/account.html', {'form': form, 'pending_update': pending_update, 'profile': profile})
 
 
-from django.contrib.auth import logout
 
 @login_required
 def delete_account_view(request):
@@ -148,19 +138,7 @@ def delete_account_view(request):
         password = request.POST.get('password')
         if request.user.check_password(password):
             user = request.user
-            
-            # Delete images from disk
-            import os
-            try:
-                if hasattr(user, 'trainer_profile'):
-                    profile = user.trainer_profile
-                    if profile.profile_picture and os.path.isfile(profile.profile_picture.path):
-                        os.remove(profile.profile_picture.path)
-                    if hasattr(profile, 'pending_update') and profile.pending_update.profile_picture:
-                        if os.path.isfile(profile.pending_update.profile_picture.path):
-                            os.remove(profile.pending_update.profile_picture.path)
-            except Exception:
-                pass
+            # The image deletion is now handled automatically by django-cleanup upon user.delete() cascading.
                 
             logout(request)
             user.delete()
@@ -171,9 +149,6 @@ def delete_account_view(request):
     return redirect('trainers:account')
 
 
-from .models import TrainerPost
-from .forms import TrainerPostForm
-from django.core.paginator import Paginator
 
 @login_required
 def post_list_view(request):

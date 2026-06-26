@@ -109,42 +109,14 @@ class TrainerPost(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        # Usuwanie starego zdjęcia przy zmianie na nowe lub usunięciu
-        if self.pk:
-            try:
-                old_instance = TrainerPost.objects.get(pk=self.pk)
-                if old_instance.image and self.image != old_instance.image:
-                    if 'post_hero.png' not in old_instance.image.name:
-                        import os
-                        if os.path.isfile(old_instance.image.path):
-                            try:
-                                os.remove(old_instance.image.path)
-                            except Exception:
-                                pass
-            except TrainerPost.DoesNotExist:
-                pass
-
-        from django.utils.text import slugify
         base_slug = slugify(self.title)
         slug = base_slug
         counter = 1
-        # Jeśli edytujemy istniejący post i tytuł się nie zmienił aż tak by zmienić slug, to ok.
-        # Ale chcemy aktualizować zawsze na podstawie tytułu i zachować unikalność:
         while TrainerPost.objects.filter(slug=slug).exclude(pk=self.pk).exists():
             slug = f"{base_slug}-{counter}"
             counter += 1
         self.slug = slug
         super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        if self.image and 'post_hero.png' not in self.image.name:
-            import os
-            if os.path.isfile(self.image.path):
-                try:
-                    os.remove(self.image.path)
-                except Exception:
-                    pass
-        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.title} - {self.trainer.full_name}"

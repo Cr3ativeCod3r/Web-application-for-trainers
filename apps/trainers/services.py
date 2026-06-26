@@ -46,20 +46,20 @@ def approve_profile_update(update_obj: TrainerProfileUpdate) -> TrainerProfile:
         
         # Handle profile picture replacement
         if update_obj.profile_picture:
-            if profile.profile_picture and profile.profile_picture != update_obj.profile_picture:
-                if os.path.isfile(profile.profile_picture.path):
-                    try:
-                        os.remove(profile.profile_picture.path)
-                    except Exception:
-                        pass
-            profile.profile_picture = update_obj.profile_picture
+            # Duplicate the file so django-cleanup can safely delete the pending one
+            from django.core.files.base import ContentFile
+            profile.profile_picture.save(
+                os.path.basename(update_obj.profile_picture.name),
+                ContentFile(update_obj.profile_picture.read()),
+                save=False
+            )
             
         profile.instagram = update_obj.instagram
         profile.facebook = update_obj.facebook
         profile.tiktok = update_obj.tiktok
         profile.save()
         
-        # Remove the pending update request
+        # Remove the pending update request (django-cleanup will delete its file)
         update_obj.delete()
         
     return profile
@@ -68,12 +68,5 @@ def reject_profile_update(update_obj: TrainerProfileUpdate) -> None:
     """
     Service to reject a pending profile update and clean up any uploaded files.
     """
-    # If there is a new uploaded picture, delete it from the file system
-    if update_obj.profile_picture:
-        if os.path.isfile(update_obj.profile_picture.path):
-            try:
-                os.remove(update_obj.profile_picture.path)
-            except Exception:
-                pass
-                
+    # django-cleanup handles file deletion automatically
     update_obj.delete()
