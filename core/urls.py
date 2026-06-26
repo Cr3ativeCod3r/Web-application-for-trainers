@@ -21,3 +21,8 @@ if settings.DEBUG:
     urlpatterns += [
         path('404/', page_not_found, kwargs={'exception': Exception("Test 404")}),
     ]
+
+    import debug_toolbar
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns
