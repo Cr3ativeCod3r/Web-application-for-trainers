@@ -30,7 +30,7 @@ Odpowiedzi użytkownika:
     for item in answers:
         prompt += f"Pytanie: {item.get('question')}\nOdpowiedź: {item.get('answer')}\n\n"
         
-    api_key = getattr(settings, 'API_GEMINI', None) or os.environ.get('API_GEMINI') or os.environ.get('api_gemini')
+    api_key = settings.API_GEMINI
     if not api_key:
         raise AIServiceError('Brak klucza API Gemini w konfiguracji serwera.')
         

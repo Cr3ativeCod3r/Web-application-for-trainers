@@ -14,6 +14,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(=+dp(si1)ucdw(o@k9$@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = str(os.environ.get('DEBUG', 'True')).lower() in ('true', '1', 't')
 
+API_GEMINI = os.environ.get('API_GEMINI', '')
+
+
 ALLOWED_HOSTS = ['*']
 
 
