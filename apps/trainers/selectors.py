@@ -5,7 +5,9 @@ from apps.accounts.models import TrainerStatus
 
 def get_approved_trainers() -> QuerySet[TrainerProfile]:
     """Returns a queryset of approved trainer profiles."""
-    return TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+    return TrainerProfile.objects.filter(
+        user__status=TrainerStatus.APPROVED_TRAINER
+    ).select_related('user').prefetch_related('sports')
 
 def search_trainers(sport: str = '', location: str = '', training_type: str = '') -> QuerySet[TrainerProfile]:
     """

@@ -16,11 +16,11 @@ def get_admin_dashboard_data(
     """
     Returns querysets needed for the admin dashboard, optionally filtered.
     """
-    pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION)
+    pending_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.PENDING_APPLICATION).select_related('user').prefetch_related('sports')
     active_profiles = get_approved_trainers()
-    banned_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.BANNED)
-    pending_updates = TrainerProfileUpdate.objects.all()
-    all_posts = TrainerPost.objects.all()
+    banned_profiles = TrainerProfile.objects.filter(user__status=TrainerStatus.BANNED).select_related('user').prefetch_related('sports')
+    pending_updates = TrainerProfileUpdate.objects.all().select_related('profile', 'profile__user').prefetch_related('sports')
+    all_posts = TrainerPost.objects.all().select_related('trainer', 'trainer__user')
 
     if q_pending:
         pending_profiles = pending_profiles.filter(contact_email__icontains=q_pending)
