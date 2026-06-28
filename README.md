@@ -22,34 +22,42 @@ This is a modern web application for trainers and users built with Django, Postg
 ## Project Structure
 
 The application follows a project-level architecture pattern (sometimes referred to as a monorepo-style Django structure or apps-as-packages layout).
-The structure of the application is designed to be modular and scalable:
+Currently, the application consists of 4 main apps:
 
 ```text
-my_trainers_project/
-├── core/                       # Main project configuration folder (settings, main urls)
-├── apps/                       # All Django applications
-│   ├── accounts/               # APP 1: User management and authentication logic
-│   │   ├── migrations/         # Database migrations for accounts
-│   │   └── templates/          # Account specific templates (login, register, emails)
-│   ├── trainers/               # APP 2: Trainer profiles, directory, and search engine logic
-│   │   ├── migrations/         # Database migrations for trainers
-│   │   └── templates/          # Trainer specific templates (dashboards, search, forms)
-│   └── pages/                  # APP 3: Static pages logic (About, Contact, Privacy Policy)
-│       └── templates/          # Page specific templates
-├── templates/                  # Global folder for base HTML templates
-│   └── includes/               # Reusable template components (header, footer)
-├── static/                     # Project static files
-│   └── css/                    # Custom CSS styles (Tailwind config output)
-└── media/                      # User-uploaded files (requires configuration in settings.py)
-    └── profile_pics/           # Trainer profile pictures
+apps/
+├── accounts/               # APP 1: User management and authentication logic
+├── admin_dashboard/        # APP 2: Custom administration dashboard logic
+├── pages/                  # APP 3: Static pages logic (About, Contact, Privacy Policy)
+└── trainers/               # APP 4: Trainer profiles, directory, search engine and AI recommendations
 ```
+
+### App Structure Template
+
+Each app follows a strict separation of concerns, heavily utilizing the **Service Layer** and **Selectors** pattern to keep views and models thin:
+
+```text
+apps/<app_name>/
+├── __init__.py
+├── admin.py                # Django admin configuration
+├── apps.py                 # App configuration
+├── forms.py                # Form definitions
+├── models.py               # Database schema definitions (keep logic out of here)
+├── selectors.py            # Data fetching logic (complex queries, filtering)
+├── services.py             # Business logic and writing to the database
+├── urls.py                 # URL routing for the app
+└── views.py                # HTTP request handling (orchestrates forms, services, and selectors)
+```
+
+By separating `services.py` (which handles business logic, object creation, and updates) from `selectors.py` (which handles data retrieval and complex queries), the codebase remains highly maintainable, testable, and clean.
 
 ### Key Modules
 
 - **core**: The core configuration for the entire application, containing settings and the primary URL dispatcher.
 - **apps/accounts**: Responsible for user authentication flows, profile management, and session handling.
-- **apps/trainers**: A dedicated module for finding and presenting trainer profiles, managing their multimedia (like photos), and handling trainer submissions.
+- **apps/admin_dashboard**: Provides a custom admin interface for platform management.
 - **apps/pages**: Handles static and semi-static pages such as About, Contact, and Privacy Policy.
+- **apps/trainers**: A dedicated module for finding and presenting trainer profiles, managing their multimedia (like photos), AI features, and handling trainer submissions.
 - **templates/static**: Location for global base HTML files, reusable components, and static assets (CSS, JS, Images). App-specific templates reside in their respective `apps/<app_name>/templates/` directories.
 - **media**: Where all user-provided data and photos reside (not committed to source control).
 
