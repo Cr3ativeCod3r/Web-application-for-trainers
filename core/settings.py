@@ -152,18 +152,23 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'banaszekk123@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# AWS S3 Storage Configuration
-USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
+# Cloudflare R2 Storage Configuration
+USE_R2 = os.environ.get('USE_R2', 'False') == 'True'
 
-if USE_S3:
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
+if USE_R2:
+    AWS_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL')
+    AWS_S3_REGION_NAME = 'auto'  # Cloudflare R2 requires 'auto'
     
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+    
+    # If you have a public custom domain connected to R2, set it here (e.g., cdn.twojadomena.pl or pub-...r2.dev)
+    r2_custom_domain = os.environ.get('R2_CUSTOM_DOMAIN')
+    if r2_custom_domain:
+        AWS_S3_CUSTOM_DOMAIN = r2_custom_domain
     
     STORAGES = {
         "default": {
