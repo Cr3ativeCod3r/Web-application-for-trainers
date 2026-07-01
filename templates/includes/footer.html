@@ -1,7 +1,11 @@
+{% load static %}
 <footer class="bg-navy text-white py-8 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="text-gray-400 text-sm">
-                &copy; {% now "Y" %} Coachly. Wszelkie prawa zastrzeżone.
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <img src="{% static 'img/logo.svg' %}" alt="Coachly Logo" class="h-8 w-auto opacity-80 hover:opacity-100 transition-opacity">
+                <div class="text-gray-400 text-sm">
+                    &copy; {% now "Y" %} Coachly. Wszelkie prawa zastrzeżone.
+                </div>
             </div>
             <div class="flex gap-6 text-sm font-medium">
                 <a href="{% url 'pages:about' %}" class="hover:text-primary transition-colors">O nas</a>

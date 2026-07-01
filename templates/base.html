@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Znajdź Trenera{% endblock %}</title>
+    <title>{% block title %}Coachly{% endblock %}</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     {% load static %}
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/ico.svg' %}">
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <style type="text/tailwindcss">
         @theme {
@@ -21,7 +22,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen font-sans">
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen font-sans pb-16 md:pb-0">
     {% include 'includes/header.html' %}
 
     <main class="flex-1">
@@ -30,6 +31,7 @@
     </main>
 
     {% include 'includes/footer.html' %}
+    {% include 'includes/bottom_nav.html' %}
     
     <script src="{% static 'js/scripts.js' %}"></script>
     

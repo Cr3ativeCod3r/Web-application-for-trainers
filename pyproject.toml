@@ -19,6 +19,8 @@ dependencies = [
     "django-cleanup>=9.0.0",
     "django-autoslug>=1.9.9",
     "django-debug-toolbar>=7.0.0",
+    "django-storages>=1.14.6",
+    "boto3>=1.43.38",
 ]
 
 [dependency-groups]
