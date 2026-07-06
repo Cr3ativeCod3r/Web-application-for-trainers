@@ -1,0 +1,10 @@
+Witaj,
+
+Dziękujemy za rejestrację w TrainApp! Aby aktywować swoje konto trenera, kliknij w poniższy link:
+
+http://{{ domain }}{% url 'accounts:activate' uidb64=uid token=token %}
+
+Jeśli to nie Ty zakładałeś konto, po prostu zignoruj tę wiadomość.
+
+Pozdrawiamy,
+Zespół Coachly

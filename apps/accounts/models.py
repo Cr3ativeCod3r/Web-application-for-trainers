@@ -49,6 +49,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+class ClientProfile(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='client_profile')
+    first_name = models.CharField(max_length=50, verbose_name="Imię")
+    last_name = models.CharField(max_length=50, verbose_name="Nazwisko")
+
+    class Meta:
+        verbose_name = "Profil klienta"
+        verbose_name_plural = "Profile klientów"
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
 from allauth.socialaccount.models import SocialAccount
 
 class GoogleAccount(SocialAccount):

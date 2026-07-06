@@ -3,14 +3,18 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('trenerzy/', include('apps.accounts.urls')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('', include('apps.accounts.urls')),
+    
     path('accounts/', include('allauth.urls')),
     path('zarzadzaj/', include('apps.admin_dashboard.urls')),
     path('', include('apps.pages.urls')),
     path('', include('apps.trainers.urls')),
-
 ]
 
 if settings.DEBUG:

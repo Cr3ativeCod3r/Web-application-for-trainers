@@ -80,7 +80,14 @@ def apply_trainer_view(request):
 
 def public_profile_view(request, username):
     profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
-    return render(request, 'trainers/public_profile.html', {'profile': profile})
+    context = {'profile': profile}
+    
+    if request.user.is_authenticated:
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(request.user)
+        context['jwt_token'] = str(refresh.access_token)
+        
+    return render(request, 'trainers/public_profile.html', context)
 
 @login_required
 @ratelimit(key='user', rate='10/m', block=True)
@@ -230,3 +237,52 @@ def public_post_view(request, username, slug):
     post = get_object_or_404(TrainerPost, trainer=profile, slug=slug)
     
     return render(request, 'trainers/public_post.html', {'profile': profile, 'post': post})
+
+
+# Auth Views moved from accounts
+from django.contrib.auth.views import LoginView
+from django.views.generic.edit import CreateView
+from django.views.generic import TemplateView
+from django.urls import reverse_lazy
+from apps.accounts.forms import TrainerRegistrationForm, CustomAuthenticationForm
+from apps.accounts.services import AuthService
+from django.utils.decorators import method_decorator
+
+@method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
+@method_decorator(ratelimit(key='post:username', rate='5/m', block=True), name='dispatch')
+class TrainerLoginView(LoginView):
+    template_name = 'trainers/login.html'
+    form_class = CustomAuthenticationForm
+    redirect_authenticated_user = True
+
+    def form_valid(self, form):
+        remember_me = form.cleaned_data.get('remember_me')
+        if not remember_me:
+            self.request.session.set_expiry(0)
+            self.request.session.modified = True
+        else:
+            self.request.session.set_expiry(1209600)
+            self.request.session.modified = True
+        return super().form_valid(form)
+
+@method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
+class TrainerRegisterView(CreateView):
+    template_name = 'trainers/register.html'
+    form_class = TrainerRegistrationForm
+    success_url = reverse_lazy('trainers:registration_success')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('trainers:home_search')
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        email = form.cleaned_data.get('email')
+        password = form.cleaned_data.get('password')
+        domain = self.request.get_host()
+        
+        self.object = AuthService.register_trainer(email, password, domain)
+        return redirect(self.success_url)
+
+class RegistrationSuccessView(TemplateView):
+    template_name = 'trainers/registration_success.html'

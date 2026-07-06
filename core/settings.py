@@ -19,6 +19,8 @@ API_GEMINI = os.environ.get('API_GEMINI', '')
 
 ALLOWED_HOSTS = ['*']
 
+DOMAIN = os.environ.get('DOMAIN', 'localhost:8000')
+
 
 # Application definition
 
@@ -44,6 +46,8 @@ INSTALLED_APPS = [
     'django_cleanup.apps.CleanupConfig',
     'debug_toolbar',
     'storages',
+    'rest_framework',
+    'rest_framework_simplejwt',
 ] + LOCAL_APPS
 
 MIDDLEWARE = [
@@ -233,4 +237,22 @@ CACHES = {
         "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'),
     }
 }
+
+# REST Framework Config
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
 

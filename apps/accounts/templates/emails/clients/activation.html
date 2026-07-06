@@ -1,0 +1,22 @@
+{% extends 'emails/base.html' %}
+
+{% block content %}
+<h2>Witaj!</h2>
+
+<p>Dziękujemy za rejestrację na platformie Coachly. Cieszymy się, że do nas dołączasz!</p>
+
+<p>Aby móc korzystać z serwisu i kontaktować się z trenerami, prosimy o potwierdzenie Twojego adresu e-mail.</p>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="http://{{ domain }}{% url 'accounts:activate' uidb64=uid token=token %}" class="button">
+        Aktywuj konto
+    </a>
+</div>
+
+<p>Jeśli przycisk nie działa, skopiuj i wklej poniższy link w pasku przeglądarki:</p>
+<p class="link-text">http://{{ domain }}{% url 'accounts:activate' uidb64=uid token=token %}</p>
+
+<p>Jeśli to nie Ty zakładałeś konto w naszym serwisie, po prostu zignoruj tę wiadomość.</p>
+
+<p>Pozdrawiamy,<br>Zespół Coachly</p>
+{% endblock content %}

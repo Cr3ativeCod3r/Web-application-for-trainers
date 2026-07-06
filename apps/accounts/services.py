@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
-from .tasks import send_activation_email_task
+from .tasks import send_activation_email_task, send_activation_email_client_task
 
 User = get_user_model()
 
@@ -19,6 +19,19 @@ class AuthService:
         
         # Dispatch email sending in the background (Celery)
         send_activation_email_task.delay(user.pk, domain)
+        return user
+
+    @staticmethod
+    def register_client(email, password, domain):
+        """
+        Creates a new user with an 'inactive' status and dispatches a client activation email asynchronously.
+        """
+        user = User.objects.create_user(email=email, password=password)
+        user.is_active = False
+        user.save()
+
+        # Dispatch email sending in the background (Celery)
+        send_activation_email_client_task.delay(user.pk, domain)
         return user
 
     @staticmethod

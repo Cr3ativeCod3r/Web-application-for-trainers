@@ -1,0 +1,159 @@
+{% load static %}
+
+<style>
+  .auth-modal-input {
+    display: block;
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 3rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: #1a252f;
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.75rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  .auth-modal-input:focus {
+    background: #fff;
+    border-color: #2ecc71;
+    box-shadow: 0 0 0 4px rgba(46,204,113,0.12);
+  }
+  .auth-modal-input::placeholder {
+    color: #9ca3af;
+  }
+</style>
+
+<div id="authModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeAuthModal()"></div>
+
+    <!-- Modal Content -->
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden">
+
+        <!-- Dark header -->
+        <div class="bg-navy px-8 pt-8 pb-6 relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="flex justify-center mb-5">
+                <img src="{% static 'img/mini-logo.svg' %}" alt="Coachly" class="h-12 w-auto">
+            </div>
+            <!-- Pill tabs -->
+            <div class="flex bg-white/10 rounded-xl p-1" id="authModalTabs">
+                <button onclick="toggleAuthView('login')" id="tabLogin"
+                        class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all bg-white text-navy">
+                    Zaloguj się
+                </button>
+                <button onclick="toggleAuthView('register')" id="tabRegister"
+                        class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all text-white/70 hover:text-white">
+                    Zarejestruj się
+                </button>
+            </div>
+        </div>
+
+        <div class="px-8 py-6">
+            {% include 'accounts/auth/login.html' %}
+            {% include 'accounts/auth/register.html' %}
+            {% include 'accounts/auth/success.html' %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function openAuthModal(view = 'login') {
+        document.getElementById('authModal').classList.remove('hidden');
+        toggleAuthView(view);
+    }
+
+    function closeAuthModal() {
+        document.getElementById('authModal').classList.add('hidden');
+    }
+
+    function toggleAuthView(view) {
+        document.getElementById('authModalLoginView').classList.add('hidden');
+        document.getElementById('authModalRegisterView').classList.add('hidden');
+        document.getElementById('authModalSuccessView').classList.add('hidden');
+
+        const tabLogin = document.getElementById('tabLogin');
+        const tabRegister = document.getElementById('tabRegister');
+        const tabs = document.getElementById('authModalTabs');
+
+        if (tabLogin && tabRegister) {
+            tabLogin.className = 'flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ' +
+                (view === 'login' ? 'bg-white text-navy' : 'text-white/70 hover:text-white');
+            tabRegister.className = 'flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ' +
+                (view === 'register' ? 'bg-white text-navy' : 'text-white/70 hover:text-white');
+        }
+
+        if (view === 'login') {
+            document.getElementById('authModalLoginView').classList.remove('hidden');
+        } else if (view === 'register') {
+            document.getElementById('authModalRegisterView').classList.remove('hidden');
+        } else if (view === 'success') {
+            document.getElementById('authModalSuccessView').classList.remove('hidden');
+            if (tabs) tabs.classList.add('hidden');
+        }
+    }
+
+    function toggleModalPassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const isHidden = input.type === 'password';
+        input.type = isHidden ? 'text' : 'password';
+        btn.querySelector('.eye-show').classList.toggle('hidden', isHidden);
+        btn.querySelector('.eye-hide').classList.toggle('hidden', !isHidden);
+    }
+
+    async function submitAuthForm(event, url, type) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const errorDiv = document.getElementById(type + 'ErrorMsg');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.message) {
+                    toggleAuthView('success');
+                    document.getElementById('authModalSuccessMessage').innerText = data.message;
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                let errorText = "Wystąpił błąd. ";
+                if (data.errors) {
+                    for (const [key, msgs] of Object.entries(data.errors)) {
+                        errorText += msgs.join(' ');
+                    }
+                }
+                if (errorDiv) {
+                    errorDiv.innerText = errorText;
+                    errorDiv.classList.remove('hidden');
+                }
+            }
+        } catch (error) {
+            if (errorDiv) {
+                errorDiv.innerText = "Wystąpił błąd sieciowy.";
+                errorDiv.classList.remove('hidden');
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = type === 'login' ? 'Zaloguj się' : 'Zarejestruj się';
+        }
+    }
+</script>

@@ -21,6 +21,9 @@ dependencies = [
     "django-debug-toolbar>=7.0.0",
     "django-storages>=1.14.6",
     "boto3>=1.43.38",
+    "djangorestframework>=3.17.1",
+    "djangorestframework-simplejwt>=5.5.1",
+    "greenlet>=3.5.3",
 ]
 
 [dependency-groups]
@@ -32,3 +35,8 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "core.test_settings"
 python_files = ["test_*.py", "*_test.py"]
+
+[tool.uv.workspace]
+members = [
+    "chat",
+]

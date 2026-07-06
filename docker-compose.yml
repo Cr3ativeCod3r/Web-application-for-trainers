@@ -67,6 +67,7 @@ services:
     command: >
       sh -c "uv run celery -A core worker -l info"
 
+
 volumes:
   postgres_data:
 
