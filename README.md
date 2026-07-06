@@ -21,12 +21,14 @@ This is a modern web application for trainers and users built with Django, Postg
 
 ## 🐳 Docker Containers
 
-The project is orchestrated using `docker-compose` and consists of 4 main containers:
+The project is orchestrated using `docker-compose` and consists of 5 main containers:
 
 1. **`web`**: The main Django application running on Gunicorn/Uvicorn, handling all standard HTTP requests, templates, and REST APIs.
 2. **`db`**: A PostgreSQL 15 database container persisting data for the application.
 3. **`redis`**: An in-memory data structure store used as a message broker for Celery and for caching rate-limits.
 4. **`celery_worker`**: A background worker executing asynchronous tasks (e.g., sending activation emails) to avoid blocking the main `web` threads.
+5. **`chat`**: A standalone ASGI microservice built with **FastAPI** that exclusively handles real-time WebSocket connections and chat history using Redis Pub/Sub for scalability.
+
 ## Project Structure
 
 The application follows a project-level architecture pattern (sometimes referred to as a monorepo-style Django structure or apps-as-packages layout).

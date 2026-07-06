@@ -113,3 +113,67 @@ class ActivateAccountView(View):
             
         return redirect('accounts:login')
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class ChatView(LoginRequiredMixin, TemplateView):
+    template_name = 'chat/index.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        refresh = RefreshToken.for_user(self.request.user)
+        context['jwt_token'] = str(refresh.access_token)
+
+        user = self.request.user
+        # Try to get display name from trainer or client profile
+        display_name = user.email
+        avatar_url = ''
+        try:
+            profile = user.trainer_profile
+            display_name = profile.full_name or user.email
+            if profile.profile_picture:
+                avatar_url = profile.profile_picture.url
+        except Exception:
+            try:
+                cp = user.client_profile
+                display_name = f"{cp.first_name} {cp.last_name}".strip() or user.email
+            except Exception:
+                pass
+
+        context['current_user_name'] = display_name
+        context['current_user_avatar'] = avatar_url
+        return context
+
+
+@login_required
+def user_info_api(request, user_id):
+    """Returns basic info (name + avatar) for a given user ID — used by the chat JS."""
+    try:
+        target = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'not found'}, status=404)
+
+    name = target.email
+    avatar_url = ''
+    try:
+        profile = target.trainer_profile
+        name = profile.full_name or target.email
+        if profile.profile_picture:
+            avatar_url = profile.profile_picture.url
+    except Exception:
+        try:
+            cp = target.client_profile
+            name = f"{cp.first_name} {cp.last_name}".strip() or target.email
+        except Exception:
+            pass
+
+    trainer_username = None
+    try:
+        from apps.accounts.models import TrainerStatus
+        if target.status == TrainerStatus.APPROVED_TRAINER:
+            trainer_username = target.trainer_profile.username
+    except Exception:
+        pass
+
+    return JsonResponse({'id': user_id, 'name': name, 'avatar_url': avatar_url, 'trainer_username': trainer_username})
+

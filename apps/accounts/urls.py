@@ -37,4 +37,8 @@ urlpatterns = [
 
     # Email Activation
     path('aktywacja/<uidb64>/<token>/', views.ActivateAccountView.as_view(), name='activate'),
+    
+    # Chat
+    path('wiadomosci/', views.ChatView.as_view(), name='chat'),
+    path('api/user-info/<int:user_id>/', views.user_info_api, name='user_info_api'),
 ]

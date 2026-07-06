@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+{% block title %}Wiadomości – Coachly{% endblock %}
+
+{% block content %}
+<style>
+  /* Layout */
+  .chat-wrap { display: flex; height: calc(100vh - 140px); min-height: 500px; }
+
+  /* Sidebar */
+  .chat-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    background: #fff;
+    border-right: 1px solid #f0f0f0;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .chat-sidebar-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a252f;
+    margin: 0;
+  }
+  .chat-sidebar-header p {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin: 2px 0 0;
+  }
+  .rooms-list { flex: 1; overflow-y: auto; }
+
+  /* Room item */
+  .chat-room-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid #f9f9f9;
+    transition: background 0.15s;
+  }
+  .chat-room-item:hover { background: #f8fffe; }
+  .chat-room-item.active { background: #f0fdf6; border-left: 3px solid #2ecc71; }
+
+  .room-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #2ecc71;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a252f;
+  }
+  .room-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+  .room-info { flex: 1; min-width: 0; }
+  .room-name { font-size: 0.9rem; font-weight: 600; color: #1a252f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .room-last-msg { font-size: 0.78rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+  /* Main */
+  .chat-main { flex: 1; display: flex; flex-direction: column; background: #fafafa; min-width: 0; }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .chat-header-avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: #2ecc71; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 700; color: #1a252f;
+  }
+  .chat-header-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .chat-header-name { font-size: 1rem; font-weight: 700; color: #1a252f; }
+  .chat-header-status { font-size: 0.75rem; color: #2ecc71; font-weight: 500; }
+
+  .chat-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; color: #9ca3af;
+  }
+  .chat-empty svg { width: 56px; height: 56px; opacity: 0.4; }
+  .chat-empty p { font-size: 0.9rem; }
+
+  /* Messages */
+  .chat-messages { flex: 1; padding: 24px 24px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+
+  .msg-row { display: flex; align-items: flex-end; gap: 8px; }
+  .msg-row.sent { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    background: #2ecc71; display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: #1a252f;
+  }
+  .msg-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+  .msg-content { display: flex; flex-direction: column; max-width: 65%; }
+  .msg-row.sent .msg-content { align-items: flex-end; }
+
+  .msg-bubble {
+    padding: 10px 16px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .msg-row.sent .msg-bubble {
+    background: #2ecc71;
+    color: #1a252f;
+    font-weight: 500;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-row.received .msg-bubble {
+    background: #fff;
+    color: #1a252f;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  }
+  .msg-time { font-size: 0.68rem; color: #b0b0b0; margin-top: 4px; padding: 0 4px; }
+
+  /* Input */
+  .chat-input-area {
+    padding: 16px 24px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .chat-input-area input {
+    flex: 1;
+    padding: 12px 18px;
+    border: 2px solid #e5e7eb;
+    border-radius: 24px;
+    outline: none;
+    font-size: 0.9rem;
+    background: #f9fafb;
+    color: #1a252f;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .chat-input-area input:focus { border-color: #2ecc71; background: #fff; }
+  .chat-input-area button {
+    width: 44px; height: 44px; border: none; border-radius: 50%;
+    background: #2ecc71; color: #1a252f; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .chat-input-area button:hover { background: #27ae60; transform: scale(1.05); }
+  .chat-input-area button:active { transform: scale(0.97); }
+
+  /* Scrollbar */
+  .chat-messages::-webkit-scrollbar, .rooms-list::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track, .rooms-list::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb, .rooms-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+
+  @media (max-width: 640px) {
+    .chat-sidebar { width: 80px; }
+    .room-info, .chat-sidebar-header p { display: none; }
+    .chat-room-item { padding: 12px; justify-content: center; }
+    .chat-header-name, .chat-header-status { display: none; }
+  }
+</style>
+
+<div class="px-4 py-4 md:px-6 md:py-6" style="height: calc(100vh - 80px); display: flex; flex-direction: column;">
+  <div class="chat-wrap rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex-1">
+
+    <!-- Sidebar -->
+    <div class="chat-sidebar">
+      <div class="chat-sidebar-header">
+        <h2>Wiadomości</h2>
+        <p id="rooms-count">Ładowanie...</p>
+      </div>
+      <div class="rooms-list" id="rooms-list">
+        <!-- Skeleton -->
+        {% for i in "123" %}
+        <div class="chat-room-item" style="pointer-events:none; opacity:.5;">
+          <div class="room-avatar" style="background:#e5e7eb;"></div>
+          <div class="room-info">
+            <div style="height:12px;background:#e5e7eb;border-radius:6px;width:70%;margin-bottom:6px;"></div>
+            <div style="height:10px;background:#f3f4f6;border-radius:6px;width:90%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Main area -->
+    <div class="chat-main" id="chat-main">
+      <!-- Empty state -->
+      <div class="chat-empty" id="chat-empty">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+        <p>Wybierz rozmowę po lewej stronie</p>
+      </div>
+
+      <!-- Active chat -->
+      <div id="chat-active" style="display:none; flex-direction:column; flex:1; min-height:0;">
+        <!-- Header -->
+        <div class="chat-header" id="chat-header">
+          <div class="chat-header-avatar" id="chat-header-avatar">?</div>
+          <div style="flex:1; min-width:0;">
+            <div class="chat-header-name" id="chat-header-name">–</div>
+            <div class="chat-header-status">● Online</div>
+          </div>
+          <a id="chat-profile-btn" href="#" style="display:none;"
+             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-semibold whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Zobacz profil
+          </a>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages" id="messages-list"></div>
+
+        <!-- Input -->
+        <div class="chat-input-area">
+          <input type="text" id="message-input" placeholder="Napisz wiadomość…"
+                 onkeypress="if(event.key==='Enter') sendMessage()">
+          <button onclick="sendMessage()" aria-label="Wyślij">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const jwtToken = "{{ jwt_token }}";
+  const currentUserId = {{ request.user.id }};
+  const currentUserName = "{{ current_user_name|escapejs }}";
+  const currentUserAvatar = "{{ current_user_avatar|escapejs }}";
+  const API_BASE = "http://" + window.location.hostname + ":8001";
+  const WS_BASE  = "ws://"  + window.location.hostname + ":8001";
+
+  let currentRoomId = null;
+  let socket = null;
+  const userCache = {}; // id -> {name, avatar_url}
+
+  // Pre-populate cache with current user
+  userCache[currentUserId] = { name: currentUserName, avatar_url: currentUserAvatar };
+
+  /* ── helpers ── */
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  function formatTime(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) return time;
+    return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${time}`;
+  }
+
+  function avatarEl(user, size = 46, cls = 'room-avatar') {
+    const wrap = document.createElement('div');
+    wrap.className = cls;
+    wrap.style.cssText = `width:${size}px;height:${size}px;font-size:${Math.round(size*0.35)}px;`;
+    if (user && user.avatar_url) {
+      const img = document.createElement('img');
+      img.src = user.avatar_url;
+      img.alt = user.name || '?';
+      img.onerror = () => { img.remove(); wrap.textContent = initials(user && user.name); };
+      wrap.appendChild(img);
+    } else {
+      wrap.textContent = initials(user && user.name);
+    }
+    return wrap;
+  }
+
+  async function getUser(id) {
+    if (userCache[id]) return userCache[id];
+    try {
+      const res = await fetch(`/api/user-info/${id}/`);
+      if (res.ok) { userCache[id] = await res.json(); return userCache[id]; }
+    } catch(e) {}
+    return { name: `Użytkownik #${id}`, avatar_url: '' };
+  }
+
+  /* ── rooms ── */
+  async function fetchRooms() {
+    try {
+      const res = await fetch(API_BASE + "/rooms", {
+        headers: { 'Authorization': 'Bearer ' + jwtToken }
+      });
+      if (!res.ok) return;
+      const rooms = await res.json();
+      const list = document.getElementById('rooms-list');
+      list.innerHTML = '';
+
+      const count = document.getElementById('rooms-count');
+      count.textContent = rooms.length === 0 ? 'Brak konwersacji' : `${rooms.length} konwersacja${rooms.length === 1 ? '' : rooms.length < 5 ? 'e' : 'i'}`;
+
+      for (const room of rooms) {
+        const otherId = room.client_id === currentUserId ? room.trainer_id : room.client_id;
+        const user = await getUser(otherId);
+        const lastMsg = room.last_message;
+
+        const el = document.createElement('div');
+        el.className = 'chat-room-item';
+        el.dataset.roomId = room.id;
+
+        const av = avatarEl(user, 46, 'room-avatar');
+        const info = document.createElement('div');
+        info.className = 'room-info';
+        info.innerHTML = `
+          <div class="room-name">${user.name || 'Nieznany użytkownik'}</div>
+          <div class="room-last-msg">${lastMsg ? lastMsg.content : 'Brak wiadomości'}</div>
+        `;
+        el.appendChild(av);
+        el.appendChild(info);
+        el.onclick = () => loadRoom(room.id, el, user);
+        list.appendChild(el);
+      }
+    } catch(e) { console.error("Błąd podczas pobierania pokoi", e); }
+  }
+
+  /* ── load room ── */
+  async function loadRoom(roomId, element, otherUser) {
+    document.querySelectorAll('.chat-room-item').forEach(e => e.classList.remove('active'));
+    if (element) element.classList.add('active');
+    currentRoomId = roomId;
+
+    // Show active chat
+    document.getElementById('chat-empty').style.display = 'none';
+    const chatActive = document.getElementById('chat-active');
+    chatActive.style.display = 'flex';
+
+    // Update header
+    const headerAv = document.getElementById('chat-header-avatar');
+    const headerName = document.getElementById('chat-header-name');
+    const chatHeader = document.getElementById('chat-header');
+    headerAv.innerHTML = '';
+    if (otherUser && otherUser.avatar_url) {
+      const img = document.createElement('img');
+      img.src = otherUser.avatar_url;
+      img.onerror = () => { img.remove(); headerAv.textContent = initials(otherUser.name); };
+      headerAv.appendChild(img);
+    } else {
+      headerAv.textContent = initials(otherUser && otherUser.name);
+    }
+    headerName.textContent = otherUser ? otherUser.name : '–';
+
+    // Show/hide profile button
+    const profileBtn = document.getElementById('chat-profile-btn');
+    chatHeader.style.cursor = 'default';
+    chatHeader.onclick = null;
+    if (otherUser && otherUser.trainer_username) {
+      profileBtn.href = '/' + otherUser.trainer_username + '/';
+      profileBtn.style.display = 'flex';
+    } else {
+      profileBtn.style.display = 'none';
+    }
+
+    // Load history
+    try {
+      const res = await fetch(`${API_BASE}/rooms/${roomId}/messages`, {
+        headers: { 'Authorization': 'Bearer ' + jwtToken }
+      });
+      if (res.ok) {
+        const messages = await res.json();
+        const msgsList = document.getElementById('messages-list');
+        msgsList.innerHTML = '';
+        for (const msg of messages) {
+          const isSent = msg.sender_id === currentUserId;
+          const sender = isSent ? userCache[currentUserId] : otherUser;
+          appendMessage(msg.content, isSent, sender, msg.created_at);
+        }
+        scrollToBottom();
+      }
+    } catch(e) { console.error(e); }
+
+    // WebSocket
+    if (socket) socket.close();
+    socket = new WebSocket(`${WS_BASE}/ws/chat/${roomId}?token=${jwtToken}`);
+    socket.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+      if (data.sender_id !== currentUserId) {
+        appendMessage(data.content, false, otherUser, data.created_at || new Date().toISOString());
+        scrollToBottom();
+      }
+    };
+  }
+
+  /* ── messages ── */
+  function appendMessage(content, isSent, sender, createdAt) {
+    const list = document.getElementById('messages-list');
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (isSent ? 'sent' : 'received');
+
+    const msgContent = document.createElement('div');
+    msgContent.className = 'msg-content';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = content;
+
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = formatTime(createdAt);
+
+    msgContent.appendChild(bubble);
+    msgContent.appendChild(time);
+
+    if (isSent) {
+      // No avatar for own messages
+      row.appendChild(msgContent);
+    } else {
+      const av = avatarEl(sender, 30, 'msg-avatar');
+      row.appendChild(av);
+      row.appendChild(msgContent);
+    }
+    list.appendChild(row);
+  }
+
+  function scrollToBottom() {
+    const list = document.getElementById('messages-list');
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('message-input');
+    const text = input.value.trim();
+    if (text && socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(text);
+      appendMessage(text, true, userCache[currentUserId], new Date().toISOString());
+      input.value = '';
+      scrollToBottom();
+    }
+  }
+
+  fetchRooms();
+</script>
+{% endblock %}
