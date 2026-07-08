@@ -80,7 +80,11 @@ def apply_trainer_view(request):
 
 def public_profile_view(request, username):
     profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
-    context = {'profile': profile}
+    from django.conf import settings
+    context = {
+        'profile': profile,
+        'chat_api_url': getattr(settings, 'CHAT_API_URL', 'http://localhost:8001'),
+    }
     
     if request.user.is_authenticated:
         from rest_framework_simplejwt.tokens import RefreshToken

@@ -58,7 +58,7 @@
                     <script>
                         async function startChat(trainerId) {
                             const jwtToken = "{{ jwt_token }}";
-                            const API_BASE = "http://" + window.location.hostname + ":8001";
+                            const API_BASE = "{{ chat_api_url }}";
                             try {
                                 const res = await fetch(API_BASE + "/rooms", {
                                     method: 'POST',

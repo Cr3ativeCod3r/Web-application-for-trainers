@@ -1,6 +1,6 @@
 # Web Application for Trainers
 
-This is a modern web application for trainers and users built with Django, PostgreSQL, and Docker. Dependency management is handled by `uv`.
+This is a modern web application for trainers and users built with Django, PostgreSQL, and Docker. Dependency management is handled by `uv`. User media files can be scalably hosted in the cloud using the S3-compatible **Cloudflare R2 Storage**.
 
 <img width="1080" height="1920" alt="Image" src="https://github.com/user-attachments/assets/591990cb-0010-4334-a7e1-a5628a589892" />
 
@@ -13,7 +13,7 @@ This is a modern web application for trainers and users built with Django, Postg
 * **👤 Professional Profiles:** Dedicated profile pages for trainers to showcase their skills, bio, and pictures.
 * **🔐 Google Social Authentication:** Seamless and secure sign-up and login process utilizing OAuth 2.0 via Google, providing users with a frictionless authentication experience.
 
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/85377786-9a74-4779-aaeb-b59ed7bee0b2" />
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/10452c21-30e9-4de1-a677-8650abfe89ab" />
 
 * **✍️ Trainer Publications (Knowledge Base):** An integrated blogging system allowing trainers to publish articles and share their expertise. Includes a dedicated "Knowledge Base" hub with search capabilities, paginated views, and seamless integration with trainer profiles.
 
@@ -87,12 +87,15 @@ To protect the application against Brute Force attacks, Credential Stuffing, and
   - **Content Creation:** Limits applied to posting and updating profiles to prevent API abuse.
 * **Custom Middleware Handling:** When a user hits the limit, a custom Django Middleware intercepts the `Ratelimited` exception and gracefully redirects them to a dedicated, user-friendly 429 Error Page rather than throwing a raw 403 Forbidden error.
 
+### 3. Microservice Architecture for Live Chat (FastAPI + WebSockets)
+To handle real-time messaging without overloading the main Django application, the live chat feature was extracted into a standalone **microservice**.
+* **FastAPI & WebSockets:** A lightweight, highly concurrent service written in FastAPI exclusively manages WebSocket connections for instant messaging.
+* **Redis Pub/Sub:** Used as a message broker to broadcast messages across different connections and guarantee scalability.
+* **Seamless Integration:** The microservice shares the PostgreSQL database for message persistence and utilizes JWT tokens to authorize users securely across the Django-FastAPI boundary.
+
 ## 🚀 Future Roadmap & Development Ideas 
 
-1. **Real-time Chat & WebSockets (Django Channels):** 
-   - Allow users to directly message trainers on the platform. 
-   - Implementing this demonstrates knowledge of asynchronous Python, ASGI, Redis, and real-time bidirectional communication.
-2. **Booking & Calendar System with External API Integration:**
+1. **Booking & Calendar System with External API Integration:**
    - A feature for users to schedule training sessions directly through the app.
    - Syncing it with the **Google Calendar API** would showcase complex business logic handling, dealing with timezones, scheduling conflicts, and third-party API integrations.managing secure user data.
 3. **CI/CD Pipeline & Scalable Cloud Deployment:**

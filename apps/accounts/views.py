@@ -142,6 +142,10 @@ class ChatView(LoginRequiredMixin, TemplateView):
 
         context['current_user_name'] = display_name
         context['current_user_avatar'] = avatar_url
+        
+        from django.conf import settings
+        context['chat_api_url'] = getattr(settings, 'CHAT_API_URL', 'http://localhost:8001')
+        context['chat_ws_url'] = getattr(settings, 'CHAT_WS_URL', 'ws://localhost:8001')
         return context
 
 

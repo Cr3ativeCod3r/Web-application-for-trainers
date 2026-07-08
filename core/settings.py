@@ -255,4 +255,5 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-
+CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://localhost:8001')
+CHAT_WS_URL = os.environ.get('CHAT_WS_URL', 'ws://localhost:8001')

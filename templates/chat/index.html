@@ -4,7 +4,10 @@
 {% block content %}
 <style>
   /* Layout */
-  .chat-wrap { display: flex; height: calc(100vh - 140px); min-height: 500px; }
+  .chat-wrap { position: relative; display: flex; height: calc(100vh - 140px); min-height: 500px; }
+  
+  .chat-sidebar-overlay { display: none; }
+  .chat-mobile-menu-btn { display: none; }
 
   /* Sidebar */
   .chat-sidebar {
@@ -83,7 +86,6 @@
   }
   .chat-header-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
   .chat-header-name { font-size: 1rem; font-weight: 700; color: #1a252f; }
-  .chat-header-status { font-size: 0.75rem; color: #2ecc71; font-weight: 500; }
 
   .chat-empty {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -166,21 +168,50 @@
   .chat-messages::-webkit-scrollbar-thumb, .rooms-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
 
   @media (max-width: 640px) {
-    .chat-sidebar { width: 80px; }
-    .room-info, .chat-sidebar-header p { display: none; }
-    .chat-room-item { padding: 12px; justify-content: center; }
-    .chat-header-name, .chat-header-status { display: none; }
+    .chat-sidebar-overlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+    .chat-sidebar-overlay.open { display: block; }
+    .chat-sidebar {
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      z-index: 20;
+      height: 100%;
+      width: 280px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+    }
+    .chat-sidebar.open { transform: translateX(0); }
+    .chat-mobile-menu-btn {
+      display: flex;
+      align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #f0f0f0; border: none; cursor: pointer;
+      flex-shrink: 0;
+    }
+    .chat-header { padding: 12px 16px; }
   }
 </style>
 
 <div class="px-4 py-4 md:px-6 md:py-6" style="height: calc(100vh - 80px); display: flex; flex-direction: column;">
   <div class="chat-wrap rounded-2xl shadow-lg overflow-hidden border border-gray-100 flex-1">
 
+    <!-- Overlay -->
+    <div class="chat-sidebar-overlay" id="chat-sidebar-overlay" onclick="closeSidebar()"></div>
+
     <!-- Sidebar -->
     <div class="chat-sidebar">
       <div class="chat-sidebar-header">
         <h2>Wiadomości</h2>
         <p id="rooms-count">Ładowanie...</p>
+      </div>
+      <div class="chat-search-container" style="padding: 10px 20px; border-bottom: 1px solid #f0f0f0;">
+        <input type="text" id="chat-search" placeholder="Szukaj czatu..." style="width: 100%; padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 20px; outline: none; font-size: 0.85rem; background: #f9fafb;" oninput="filterChats(this.value)">
       </div>
       <div class="rooms-list" id="rooms-list">
         <!-- Skeleton -->
@@ -203,17 +234,22 @@
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
         </svg>
-        <p>Wybierz rozmowę po lewej stronie</p>
+        <p>Wybierz rozmowę</p>
+        <button class="md:hidden mt-4 px-6 py-2 bg-primary text-white rounded-full font-semibold" onclick="toggleSidebar()">Pokaż listę czatów</button>
       </div>
 
       <!-- Active chat -->
       <div id="chat-active" style="display:none; flex-direction:column; flex:1; min-height:0;">
         <!-- Header -->
         <div class="chat-header" id="chat-header">
+          <button class="chat-mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+            <svg class="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
           <div class="chat-header-avatar" id="chat-header-avatar">?</div>
           <div style="flex:1; min-width:0;">
             <div class="chat-header-name" id="chat-header-name">–</div>
-            <div class="chat-header-status">● Online</div>
           </div>
           <a id="chat-profile-btn" href="#" style="display:none;"
              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-semibold whitespace-nowrap">
@@ -248,8 +284,8 @@
   const currentUserId = {{ request.user.id }};
   const currentUserName = "{{ current_user_name|escapejs }}";
   const currentUserAvatar = "{{ current_user_avatar|escapejs }}";
-  const API_BASE = "http://" + window.location.hostname + ":8001";
-  const WS_BASE  = "ws://"  + window.location.hostname + ":8001";
+  const API_BASE = "{{ chat_api_url }}";
+  const WS_BASE  = "{{ chat_ws_url }}";
 
   let currentRoomId = null;
   let socket = null;
@@ -257,6 +293,21 @@
 
   // Pre-populate cache with current user
   userCache[currentUserId] = { name: currentUserName, avatar_url: currentUserAvatar };
+
+  /* ── mobile sidebar ── */
+  function toggleSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    const overlay = document.getElementById('chat-sidebar-overlay');
+    sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open');
+  }
+
+  function closeSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    const overlay = document.getElementById('chat-sidebar-overlay');
+    sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+  }
 
   /* ── helpers ── */
   function initials(name) {
@@ -332,7 +383,7 @@
         `;
         el.appendChild(av);
         el.appendChild(info);
-        el.onclick = () => loadRoom(room.id, el, user);
+        el.onclick = () => { loadRoom(room.id, el, user); closeSidebar(); };
         list.appendChild(el);
       }
     } catch(e) { console.error("Błąd podczas pobierania pokoi", e); }
@@ -441,7 +492,35 @@
     list.scrollTop = list.scrollHeight;
   }
 
+  let lastMessageTime = 0;
+
   function sendMessage() {
+    const now = Date.now();
+    if (now - lastMessageTime < 1000) {
+      if (typeof Toastify !== 'undefined') {
+        Toastify({
+          text: "Zbyt szybko wysyłasz wiadomości. Poczekaj chwilę.",
+          duration: 3000,
+          close: true,
+          gravity: "top",
+          position: "center",
+          style: {
+            background: "#F59E0B",
+            color: "#fff",
+            borderRadius: "12px",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            padding: "16px 24px",
+            fontSize: "15px",
+            fontWeight: "500",
+            fontFamily: "Inter, sans-serif"
+          }
+        }).showToast();
+      } else {
+        alert("Zbyt szybko wysyłasz wiadomości. Poczekaj chwilę.");
+      }
+      return;
+    }
+
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     if (text && socket && socket.readyState === WebSocket.OPEN) {
@@ -449,7 +528,24 @@
       appendMessage(text, true, userCache[currentUserId], new Date().toISOString());
       input.value = '';
       scrollToBottom();
+      lastMessageTime = now;
     }
+  }
+
+  function filterChats(query) {
+    const q = query.toLowerCase();
+    const items = document.querySelectorAll('.chat-room-item');
+    items.forEach(item => {
+      const nameEl = item.querySelector('.room-name');
+      if (nameEl) {
+        const name = nameEl.textContent.toLowerCase();
+        if (name.includes(q)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      }
+    });
   }
 
   fetchRooms();
