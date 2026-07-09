@@ -1,7 +1,28 @@
 from django import forms
 from .models import TrainerProfile
 
+class CommaSeparatedTagsField(forms.CharField):
+    def prepare_value(self, value):
+        if isinstance(value, list):
+            return ", ".join(value)
+        return value
+
+    def clean(self, value):
+        value = super().clean(value)
+        if not value:
+            return []
+        tags = [t.strip() for t in value.split(',') if t.strip()]
+        if len(tags) > 5:
+            raise forms.ValidationError("Możesz dodać maksymalnie 5 tagów.")
+        return tags
+
 class TrainerApplicationForm(forms.ModelForm):
+    tags = CommaSeparatedTagsField(
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'np. sport, granie, zdrowie (oddziel przecinkami, max 5)'}),
+        label="Tagi (np. sport, granie, max 5)"
+    )
+
     class Meta:
         model = TrainerProfile
         exclude = ('user', 'created_at', 'updated_at')
@@ -33,9 +54,16 @@ class TrainerApplicationForm(forms.ModelForm):
             raise forms.ValidationError("Ta nazwa użytkownika jest zarezerwowana przez system.")
         return username
 
+
 from .models import TrainerProfileUpdate
 
 class TrainerProfileUpdateForm(forms.ModelForm):
+    tags = CommaSeparatedTagsField(
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'np. sport, granie, zdrowie (oddziel przecinkami, max 5)'}),
+        label="Tagi (np. sport, granie, max 5)"
+    )
+
     class Meta:
         model = TrainerProfileUpdate
         exclude = ('profile', 'created_at')
@@ -59,6 +87,7 @@ class TrainerProfileUpdateForm(forms.ModelForm):
             if hasattr(picture, 'content_type') and picture.content_type != 'image/png':
                 raise forms.ValidationError("Zdjęcie musi być w formacie PNG.")
         return picture
+
 
 from .models import TrainerPost
 

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 
 from django.utils.text import slugify
 from autoslug import AutoSlugField
@@ -24,6 +25,13 @@ class TrainerProfile(models.Model):
     sports = models.ManyToManyField(Sport, related_name='trainers', verbose_name="Dyscypliny", blank=True)
     location = models.CharField(max_length=255, verbose_name="Lokalizacja zajęć")
     headline = models.CharField(max_length=255, verbose_name="Header (Nagłówek profilu)")
+    tags = ArrayField(
+        models.CharField(max_length=30),
+        size=5,
+        blank=True,
+        default=list,
+        verbose_name="Tagi (np. sport, granie, max 5)"
+    )
     description = models.TextField(verbose_name="Opis")
     classes_description = models.TextField(verbose_name="Opis zajęć", help_text="Opisz, jak wyglądają Twoje zajęcia", blank=True, null=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Stawka godzinowa (PLN)")
@@ -63,6 +71,13 @@ class TrainerProfileUpdate(models.Model):
     sports = models.ManyToManyField(Sport, related_name='profile_updates', verbose_name="Dyscypliny", blank=True)
     location = models.CharField(max_length=255, verbose_name="Lokalizacja zajęć")
     headline = models.CharField(max_length=255, verbose_name="Krótki nagłówek profilu (np. Trener Personalny)")
+    tags = ArrayField(
+        models.CharField(max_length=30),
+        size=5,
+        blank=True,
+        default=list,
+        verbose_name="Tagi (np. sport, granie, max 5)"
+    )
     description = models.TextField(verbose_name="Opis")
     classes_description = models.TextField(verbose_name="Opis zajęć", help_text="Opisz, jak wyglądają Twoje zajęcia", blank=True, null=True)
     hourly_rate = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="Stawka godzinowa (PLN)")

@@ -114,6 +114,18 @@
         </div>
 
         <div class="space-y-12">
+            {% if profile.tags %}
+            <div>
+                <div class="flex flex-wrap gap-2 mb-2">
+                    {% for tag in profile.tags %}
+                    <span class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-gray-100 text-navy border border-gray-200 shadow-sm transition-all hover:bg-gray-200">
+                        {{ tag }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <div>
                 <h3 class="text-2xl font-bold text-navy mb-4">O mnie</h3>
                 <div class="prose prose-gray max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">{{ profile.description }}</div>

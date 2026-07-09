@@ -95,7 +95,7 @@ def admin_update_preview_view(request, update_id):
 
     # Swap data in memory for preview (do not save)
     profile.full_name = update_obj.full_name
-    profile.sport = update_obj.sport
+    profile._prefetched_objects_cache = {'sports': list(update_obj.sports.all())}
     profile.location = update_obj.location
     profile.headline = update_obj.headline
     profile.description = update_obj.description
@@ -108,6 +108,7 @@ def admin_update_preview_view(request, update_id):
     profile.instagram = update_obj.instagram
     profile.facebook = update_obj.facebook
     profile.tiktok = update_obj.tiktok
+    profile.tags = update_obj.tags
 
     return render(request, 'trainers/public_profile.html', {'profile': profile, 'is_preview': True})
 

@@ -136,6 +136,7 @@ def trainer_account_view(request):
                 'tiktok': profile.tiktok,
                 'gender': profile.gender,
                 'training_type': profile.training_type,
+                'tags': ', '.join(profile.tags) if profile.tags else '',
             }
             form = TrainerProfileUpdateForm(initial=initial_data)
 

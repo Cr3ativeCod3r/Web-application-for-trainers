@@ -33,6 +33,7 @@ LOCAL_APPS = [
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'django.contrib.postgres',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
