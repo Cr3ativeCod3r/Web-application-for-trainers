@@ -29,6 +29,8 @@ The project is orchestrated using `docker-compose` and consists of 5 main contai
 4. **`celery_worker`**: A background worker executing asynchronous tasks (e.g., sending activation emails) to avoid blocking the main `web` threads.
 5. **`chat`**: A standalone ASGI microservice built with **FastAPI** that exclusively handles real-time WebSocket connections and chat history using Redis Pub/Sub for scalability.
 
+<img width="6330" height="5054" alt="Image" src="https://github.com/user-attachments/assets/ac177999-e970-4a07-9fb6-cf1cd40630a9" />
+
 ## Project Structure
 
 The application follows a project-level architecture pattern (sometimes referred to as a monorepo-style Django structure or apps-as-packages layout).
