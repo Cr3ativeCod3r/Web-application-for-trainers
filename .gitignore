@@ -43,3 +43,6 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Signing keys (generate with scripts/generate_jwt_keys.sh)
+secrets/

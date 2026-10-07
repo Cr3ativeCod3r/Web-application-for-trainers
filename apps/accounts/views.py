@@ -1,17 +1,19 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, View
 from django.views.generic.edit import CreateView
 from django_ratelimit.decorators import ratelimit
-from rest_framework_simplejwt.tokens import RefreshToken
 
+from .chat_tokens import issue_chat_token
 from .forms import ClientRegistrationForm, CustomAuthenticationForm, TrainerRegistrationForm
 from .selectors import get_user_display_info
 from .services import AuthService
@@ -153,10 +155,24 @@ class ChatView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         info = get_user_display_info(self.request.user)
         context.update({
-            'jwt_token': str(RefreshToken.for_user(self.request.user).access_token),
             'current_user_name': info['name'],
             'current_user_avatar': info['avatar_url'],
             'chat_api_url': settings.CHAT_API_URL,
             'chat_ws_url': settings.CHAT_WS_URL,
         })
         return context
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='30/m', block=True)
+def chat_token_api(request):
+    """
+    Issues a short-lived token for the chat service to the logged-in user. The page
+    calls it when it needs a token, so no long-lived token is embedded in the HTML.
+    POST + CSRF: another site must not be able to make the browser request one.
+    """
+    token, expires_in = issue_chat_token(request.user)
+    response = JsonResponse({'token': token, 'expires_in': expires_in})
+    response['Cache-Control'] = 'no-store'
+    return response

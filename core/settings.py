@@ -1,6 +1,5 @@
 import os
 import socket
-from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -22,7 +21,16 @@ def env_list(name: str, default: str = '') -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
 
 
-# The secret key signs sessions, password-reset tokens and the chat JWTs.
+def env_secret(name: str) -> str | None:
+    """Read a secret from NAME, or from the file NAME_FILE points to (Docker/K8s secrets)."""
+    if value := os.environ.get(name):
+        return value
+    if path := os.environ.get(f'{name}_FILE'):
+        return Path(path).read_text()
+    return None
+
+
+# The secret key signs sessions and password-reset tokens.
 # There is deliberately no fallback: a key committed to the repository is public.
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
@@ -64,8 +72,6 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'django_cleanup.apps.CleanupConfig',
     'storages',
-    'rest_framework',
-    'rest_framework_simplejwt',
 ] + LOCAL_APPS
 
 MIDDLEWARE = [
@@ -280,21 +286,17 @@ CACHES = {
     }
 }
 
-# REST Framework Config
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+# Tokens for the chat microservice (see apps/accounts/chat_tokens.py). The private
+# key never leaves this app; the chat service is configured with the public key.
+JWT_PRIVATE_KEY = env_secret('JWT_PRIVATE_KEY')
+if not JWT_PRIVATE_KEY:
+    raise ImproperlyConfigured(
+        'JWT_PRIVATE_KEY (or JWT_PRIVATE_KEY_FILE) is not set. Generate keys with scripts/generate_jwt_keys.sh.'
     )
-}
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'SIGNING_KEY': SECRET_KEY,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-}
+CHAT_TOKEN_ISSUER = 'coachly-web'
+CHAT_TOKEN_AUDIENCE = 'coachly-chat'
+# Short on purpose: the page asks for a fresh token whenever it needs one.
+CHAT_TOKEN_LIFETIME = 5 * 60
 
 CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://localhost:8001')
 CHAT_WS_URL = os.environ.get('CHAT_WS_URL', 'ws://localhost:8001')

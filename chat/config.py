@@ -1,9 +1,27 @@
 import os
+from pathlib import Path
 
-# Shared with Django: Django signs the JWT, this service verifies it. No fallback on purpose.
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    raise RuntimeError('SECRET_KEY environment variable is not set.')
+
+def env_secret(name: str) -> str | None:
+    """Read a secret from NAME, or from the file NAME_FILE points to (Docker/K8s secrets)."""
+    if value := os.environ.get(name):
+        return value
+    if path := os.environ.get(f'{name}_FILE'):
+        return Path(path).read_text()
+    return None
+
+
+# Public half of the main app's signing key: this service can verify tokens but
+# never issue them. No fallback on purpose.
+JWT_PUBLIC_KEY = env_secret('JWT_PUBLIC_KEY')
+if not JWT_PUBLIC_KEY:
+    raise RuntimeError('JWT_PUBLIC_KEY (or JWT_PUBLIC_KEY_FILE) is not set.')
+JWT_ALGORITHMS = ['ES256']
+JWT_ISSUER = 'coachly-web'
+JWT_AUDIENCE = 'coachly-chat'
+
+# Single-use tickets for opening a WebSocket (see main.create_ws_ticket).
+WS_TICKET_TTL_SECONDS = 30
 
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 REDIS_CHANNEL = 'chat_messages'

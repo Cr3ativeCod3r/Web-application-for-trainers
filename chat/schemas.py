@@ -34,3 +34,8 @@ class RoomResponse(BaseModel):
     created_at: datetime
     last_message: MessageResponse | None = None
     partner: ParticipantResponse | None = None
+
+
+class WsTicketResponse(BaseModel):
+    ticket: str
+    expires_in: int

@@ -9,7 +9,7 @@ import database
 import main
 from config import CONTROL_CHANNEL, USER_EVENTS_GROUP, USER_EVENTS_STREAM
 from models import ChatUser
-from tests.conftest import APPROVED_TRAINER_ID, CLIENT_ID, make_token
+from tests.conftest import APPROVED_TRAINER_ID, CLIENT_ID, auth, ws_url
 from user_events import consume_once, ensure_group
 
 NEW_USER_ID = 50
@@ -102,9 +102,9 @@ class TestApplyingEvents:
 class TestKickingDisabledUsers:
     def test_ban_closes_open_websocket(self, client):
         room_id = client.post('/rooms', json={'trainer_id': APPROVED_TRAINER_ID},
-                              headers={'Authorization': f'Bearer {make_token(CLIENT_ID)}'}).json()['id']
+                              headers=auth(CLIENT_ID)).json()['id']
 
-        with client.websocket_connect(f'/ws/chat/{room_id}?token={make_token(CLIENT_ID)}') as ws:
+        with client.websocket_connect(ws_url(client, room_id, CLIENT_ID)) as ws:
             client.portal.call(
                 main.redis_client.publish, CONTROL_CHANNEL, json.dumps({'type': 'user_disabled', 'user_id': CLIENT_ID})
             )

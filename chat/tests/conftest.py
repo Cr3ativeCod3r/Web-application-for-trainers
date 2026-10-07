@@ -1,12 +1,21 @@
 import asyncio
 import os
 import sys
+from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
+# A throwaway key pair: tests play the role of the main app and sign tokens.
+PRIVATE_KEY = ec.generate_private_key(ec.SECP256R1())
+PUBLIC_KEY_PEM = PRIVATE_KEY.public_key().public_bytes(
+    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+).decode()
 
 # Configure the service before it is imported.
-os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key-not-for-production-use')
+os.environ['JWT_PUBLIC_KEY'] = PUBLIC_KEY_PEM
 os.environ['DATABASE_URL'] = os.environ.get(
     'CHAT_TEST_DATABASE_URL', 'postgresql+asyncpg://trainuser:trainpass@localhost:5432/chat_test'
 )
@@ -19,7 +28,6 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 
 import database  # noqa: E402
 import main  # noqa: E402
-from config import SECRET_KEY  # noqa: E402
 from models import ChatUser  # noqa: E402
 
 # NullPool: TestClient runs the app in its own event loop, and asyncpg connections
@@ -81,9 +89,25 @@ def client(monkeypatch):
         yield test_client
 
 
-def make_token(user_id: int, token_type: str = 'access') -> str:
-    return jwt.encode({'user_id': user_id, 'token_type': token_type}, SECRET_KEY, algorithm='HS256')
+def make_token(user_id: int, *, key=PRIVATE_KEY, algorithm='ES256', lifetime=timedelta(minutes=5), **overrides) -> str:
+    now = datetime.now(UTC)
+    claims = {
+        'iss': 'coachly-web',
+        'aud': 'coachly-chat',
+        'sub': str(user_id),
+        'iat': now,
+        'exp': now + lifetime,
+        **overrides,
+    }
+    return jwt.encode(claims, key, algorithm=algorithm)
 
 
 def auth(user_id: int) -> dict:
     return {'Authorization': f'Bearer {make_token(user_id)}'}
+
+
+def ws_url(client, room_id: int, user_id: int) -> str:
+    """What the browser does: exchange the token for a one-time ticket, then connect."""
+    response = client.post('/ws-tickets', headers=auth(user_id))
+    assert response.status_code == 200, response.text
+    return f"/ws/chat/{room_id}?ticket={response.json()['ticket']}"

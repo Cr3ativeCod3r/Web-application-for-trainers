@@ -57,6 +57,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --all-packages
 
+      - name: Generate throwaway signing keys
+        run: ./scripts/generate_jwt_keys.sh secrets && echo "JWT_PRIVATE_KEY_FILE=$PWD/secrets/jwt_private.pem" >> "$GITHUB_ENV"
+
       - name: Lint
         run: uv run ruff check .
 

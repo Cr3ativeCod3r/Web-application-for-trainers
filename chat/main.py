@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import secrets
 import time
 from contextlib import asynccontextmanager
 
@@ -12,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import database
-from auth import get_current_user, verify_token
+from auth import get_current_user
 from config import (
     CONTROL_CHANNEL,
     CORS_ORIGINS,
@@ -22,11 +23,12 @@ from config import (
     MIN_SECONDS_BETWEEN_MESSAGES,
     REDIS_CHANNEL,
     REDIS_URL,
+    WS_TICKET_TTL_SECONDS,
 )
 from connection_manager import ConnectionManager
 from database import get_db
 from models import ChatRoom, ChatUser, Message
-from schemas import MessageResponse, ParticipantResponse, RoomCreate, RoomResponse
+from schemas import MessageResponse, ParticipantResponse, RoomCreate, RoomResponse, WsTicketResponse
 from user_events import run_consumer
 
 logger = logging.getLogger(__name__)
@@ -208,11 +210,32 @@ async def get_room_messages(
     return list(reversed(messages))
 
 
+def ws_ticket_key(ticket: str) -> str:
+    return f"chat:ws_ticket:{ticket}"
+
+
+@app.post("/ws-tickets", response_model=WsTicketResponse)
+async def create_ws_ticket(current_user_id: int = Depends(get_current_participant)):
+    """
+    Browsers cannot send an Authorization header when opening a WebSocket, and a
+    token in the URL ends up in proxy and access logs. Instead the page exchanges
+    its token for a random ticket that is valid once, for a few seconds.
+    """
+    ticket = secrets.token_urlsafe(32)
+    await redis_client.set(ws_ticket_key(ticket), current_user_id, ex=WS_TICKET_TTL_SECONDS)
+    return WsTicketResponse(ticket=ticket, expires_in=WS_TICKET_TTL_SECONDS)
+
+
+async def redeem_ws_ticket(ticket: str) -> int | None:
+    # GETDEL is atomic: two connections racing with the same ticket cannot both win.
+    user_id = await redis_client.getdel(ws_ticket_key(ticket))
+    return int(user_id) if user_id is not None else None
+
+
 @app.websocket("/ws/chat/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: int, token: str = Query(...)):
-    try:
-        user_id = verify_token(token)
-    except HTTPException:
+async def websocket_endpoint(websocket: WebSocket, room_id: int, ticket: str = Query(...)):
+    user_id = await redeem_ws_ticket(ticket)
+    if user_id is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 

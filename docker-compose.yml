@@ -29,6 +29,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
     environment:
       - DEBUG=1
       - DJANGO_SETTINGS_MODULE=core.settings
@@ -39,6 +40,7 @@ services:
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
@@ -63,6 +65,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
     environment:
       - DEBUG=1
       - DJANGO_SETTINGS_MODULE=core.settings
@@ -72,6 +75,7 @@ services:
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
     depends_on:
@@ -85,6 +89,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
@@ -94,6 +99,7 @@ services:
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
     depends_on:
       - redis
     command: >
@@ -106,10 +112,12 @@ services:
     volumes:
       - ./chat:/app
       - /app/.venv
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     environment:
       - DATABASE_URL=postgresql+asyncpg://chat:${CHAT_DB_PASS:-chat}@chat_db:5432/chat
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      # Only the public key: the chat service can verify tokens, not issue them.
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
       - CHAT_CORS_ORIGINS=${CHAT_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     depends_on:
       - chat_db

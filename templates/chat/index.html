@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Wiadomości – Coachly{% endblock %}
 
 {% block content %}
@@ -279,13 +280,17 @@
   </div>
 </div>
 
+<script src="{% static 'js/chat_client.js' %}"></script>
 <script>
-  const jwtToken = "{{ jwt_token }}";
+  const chat = new ChatClient({
+    apiBase: "{{ chat_api_url|escapejs }}",
+    wsBase: "{{ chat_ws_url|escapejs }}",
+    tokenUrl: "{% url 'accounts:chat_token' %}",
+    csrfToken: "{{ csrf_token }}",
+  });
   const currentUserId = {{ request.user.id }};
   const currentUserName = "{{ current_user_name|escapejs }}";
   const currentUserAvatar = "{{ current_user_avatar|escapejs }}";
-  const API_BASE = "{{ chat_api_url }}";
-  const WS_BASE  = "{{ chat_ws_url }}";
 
   let currentRoomId = null;
   let socket = null;
@@ -342,9 +347,7 @@
   /* ── rooms ── */
   async function fetchRooms() {
     try {
-      const res = await fetch(API_BASE + "/rooms", {
-        headers: { 'Authorization': 'Bearer ' + jwtToken }
-      });
+      const res = await chat.request("/rooms");
       if (!res.ok) return;
       const rooms = await res.json();
       const list = document.getElementById('rooms-list');
@@ -421,9 +424,7 @@
 
     // Load history
     try {
-      const res = await fetch(`${API_BASE}/rooms/${roomId}/messages`, {
-        headers: { 'Authorization': 'Bearer ' + jwtToken }
-      });
+      const res = await chat.request(`/rooms/${encodeURIComponent(roomId)}/messages`);
       if (res.ok) {
         const messages = await res.json();
         const msgsList = document.getElementById('messages-list');
@@ -439,7 +440,12 @@
 
     // WebSocket
     if (socket) socket.close();
-    socket = new WebSocket(`${WS_BASE}/ws/chat/${encodeURIComponent(roomId)}?token=${encodeURIComponent(jwtToken)}`);
+    try {
+      socket = await chat.openSocket(roomId);
+    } catch (e) {
+      console.error("Nie udało się połączyć z czatem", e);
+      return;
+    }
     socket.onmessage = function(e) {
       const data = JSON.parse(e.data);
       if (data.error) {
