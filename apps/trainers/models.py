@@ -5,6 +5,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.utils.text import slugify
 from autoslug import AutoSlugField
 
+from core.html import sanitize_html
+
 class Sport(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Nazwa sportu")
     slug = AutoSlugField(populate_from='name', unique=True, max_length=100)
@@ -119,7 +121,11 @@ class TrainerPost(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-
+    def save(self, *args, **kwargs):
+        # Content is rendered with |safe, so it is sanitized on every write path
+        # (form, Django admin, shell, seed commands) - not only in the form.
+        self.content = sanitize_html(self.content)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.title} - {self.trainer.full_name}"
