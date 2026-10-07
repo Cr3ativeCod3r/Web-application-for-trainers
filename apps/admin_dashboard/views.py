@@ -113,6 +113,8 @@ def admin_update_preview_view(request, update_id):
     profile.facebook = update_obj.facebook
     profile.tiktok = update_obj.tiktok
     profile.tags = update_obj.tags
+    profile.gender = update_obj.gender
+    profile.training_type = update_obj.training_type
 
     return render(request, 'trainers/public_profile.html', {'profile': profile, 'is_preview': True})
 

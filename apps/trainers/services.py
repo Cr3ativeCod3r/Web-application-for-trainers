@@ -74,6 +74,8 @@ def approve_profile_update(update_obj: TrainerProfileUpdate) -> TrainerProfile:
         profile.facebook = update_obj.facebook
         profile.tiktok = update_obj.tiktok
         profile.tags = update_obj.tags
+        profile.gender = update_obj.gender
+        profile.training_type = update_obj.training_type
         profile.save()
         
         # Remove the pending update request (django-cleanup will delete its file)

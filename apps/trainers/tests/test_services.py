@@ -55,6 +55,17 @@ class TestTrainersServices:
         # Update request object should be deleted
         assert not TrainerProfileUpdate.objects.filter(pk=update_req.pk).exists()
 
+    def test_approve_profile_update_copies_gender_and_training_type(self):
+        """Regression: gender and training_type used to be silently dropped on approval."""
+        profile = TrainerProfileFactory(gender='M', training_type='STATIONARY')
+        update_req = TrainerProfileUpdateFactory(profile=profile, gender='F', training_type='ONLINE')
+
+        approve_profile_update(update_req)
+
+        profile.refresh_from_db()
+        assert profile.gender == 'F'
+        assert profile.training_type == 'ONLINE'
+
     def test_reject_profile_update(self):
         """Test rejecting a profile update deletes the update request without altering main profile."""
         profile = TrainerProfileFactory(full_name="Original Name")
