@@ -189,3 +189,19 @@ class TestRateLimit:
 
         history = client.get(f'/rooms/{room_id}/messages', headers=auth(CLIENT_ID)).json()
         assert len(history) == 3
+
+
+class TestHealth:
+    def test_ready_when_dependencies_respond(self, client):
+        response = client.get('/ready')
+        assert response.status_code == 200
+        assert response.json()['checks'] == {'database': 'ok', 'redis': 'ok'}
+
+    def test_not_ready_when_redis_is_down(self, client, monkeypatch):
+        async def broken_ping():
+            raise ConnectionError('redis down')
+
+        monkeypatch.setattr(main.redis_client, 'ping', broken_ping)
+        response = client.get('/ready')
+        assert response.status_code == 503
+        assert response.json()['checks']['redis'] == 'error'

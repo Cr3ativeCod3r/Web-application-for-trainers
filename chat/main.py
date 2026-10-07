@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -297,4 +298,29 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, ticket: str = Q
 
 @app.get("/health")
 async def health_check():
+    """Liveness: the process is up. Deliberately does not touch dependencies."""
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def readiness_check(db: AsyncSession = Depends(get_db)):
+    """Readiness: only route traffic here when the database and Redis respond."""
+    checks = {}
+    try:
+        await db.execute(select(1))
+        checks["database"] = "ok"
+    except Exception:
+        logger.exception("Readiness: database check failed")
+        checks["database"] = "error"
+    try:
+        await redis_client.ping()
+        checks["redis"] = "ok"
+    except Exception:
+        logger.exception("Readiness: redis check failed")
+        checks["redis"] = "error"
+
+    ready = all(value == "ok" for value in checks.values())
+    return JSONResponse(
+        {"status": "ok" if ready else "unavailable", "checks": checks},
+        status_code=200 if ready else 503,
+    )
