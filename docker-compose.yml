@@ -82,6 +82,7 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - CHAT_CORS_ORIGINS=${CHAT_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     depends_on:
       - db
       - redis

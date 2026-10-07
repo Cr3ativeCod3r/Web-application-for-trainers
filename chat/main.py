@@ -1,196 +1,229 @@
-import os
-from typing import Dict, List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, and_
-import jwt
-from jwt.exceptions import InvalidTokenError
-import json
-import redis.asyncio as redis
 import asyncio
+import json
+import logging
+import time
+from contextlib import asynccontextmanager
 
-from database import get_db, init_db
-from models import Message, ChatRoom
-from schemas import RoomResponse, RoomCreate, MessageResponse
+import redis.asyncio as redis
+from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import and_, or_, select, text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-app = FastAPI(title="Live Chat Microservice")
+import database
+from auth import get_current_user, verify_token
+from config import (
+    CORS_ORIGINS,
+    DEFAULT_HISTORY_LIMIT,
+    MAX_HISTORY_LIMIT,
+    MAX_MESSAGE_LENGTH,
+    MIN_SECONDS_BETWEEN_MESSAGES,
+    REDIS_CHANNEL,
+    REDIS_URL,
+)
+from connection_manager import ConnectionManager
+from database import get_db
+from models import ChatRoom, Message
+from schemas import MessageResponse, RoomCreate, RoomResponse
+
+logger = logging.getLogger(__name__)
+
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+manager = ConnectionManager()
+
+
+async def redis_listener():
+    """
+    Fan-out of chat messages published by any instance of this service to the
+    WebSockets connected to *this* instance. Reconnects if Redis goes away
+    instead of dying silently and leaving the instance deaf.
+    """
+    while True:
+        try:
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe(REDIS_CHANNEL)
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                data = json.loads(message["data"])
+                room_id = data.get("room_id")
+                if room_id:
+                    await manager.broadcast_to_room(room_id, message["data"])
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Redis listener failed, reconnecting in 2s")
+            await asyncio.sleep(2)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    listener = asyncio.create_task(redis_listener())
+    yield
+    listener.cancel()
+    await redis_client.aclose()
+
+
+app = FastAPI(title="Live Chat Microservice", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://0.0.0.0:8000"
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Shared with Django: Django signs the JWT, this service verifies it. No fallback on purpose.
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    raise RuntimeError('SECRET_KEY environment variable is not set.')
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+async def get_room_for_user(db: AsyncSession, room_id: int, user_id: int) -> ChatRoom | None:
+    """Returns the room only if the user is one of its two participants."""
+    stmt = select(ChatRoom).where(
+        ChatRoom.id == room_id,
+        or_(ChatRoom.client_id == user_id, ChatRoom.trainer_id == user_id),
+    )
+    return (await db.execute(stmt)).scalars().first()
 
-class ConnectionManager:
-    def __init__(self):
-        # Maps room_id to a dict of user_id -> WebSocket
-        self.active_rooms: Dict[int, Dict[int, WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, room_id: int, user_id: int):
-        await websocket.accept()
-        if room_id not in self.active_rooms:
-            self.active_rooms[room_id] = {}
-        self.active_rooms[room_id][user_id] = websocket
+async def is_approved_trainer(db: AsyncSession, user_id: int) -> bool:
+    # Users live in Django's table; both services share the same PostgreSQL database.
+    result = await db.execute(
+        text(
+            "SELECT 1 FROM accounts_customuser "
+            "WHERE id = :id AND status = 'APPROVED_TRAINER' AND is_active"
+        ),
+        {"id": user_id},
+    )
+    return result.first() is not None
 
-    def disconnect(self, room_id: int, user_id: int):
-        if room_id in self.active_rooms and user_id in self.active_rooms[room_id]:
-            del self.active_rooms[room_id][user_id]
-            if not self.active_rooms[room_id]:
-                del self.active_rooms[room_id]
-
-    async def broadcast_to_room(self, room_id: int, message: str):
-        if room_id in self.active_rooms:
-            for connection in self.active_rooms[room_id].values():
-                await connection.send_text(message)
-
-manager = ConnectionManager()
-security = HTTPBearer()
-
-def verify_token(token: str) -> int:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload.get("user_id")
-        if user_id is None:
-            raise InvalidTokenError()
-        return int(user_id)
-    except InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> int:
-    return verify_token(credentials.credentials)
-
-@app.on_event("startup")
-async def on_startup():
-    asyncio.create_task(redis_listener())
-
-async def redis_listener():
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe("chat_messages")
-    async for message in pubsub.listen():
-        if message["type"] == "message":
-            data = json.loads(message["data"])
-            room_id = data.get("room_id")
-            if room_id:
-                await manager.broadcast_to_room(room_id, message["data"])
 
 @app.post("/rooms", response_model=RoomResponse)
 async def create_or_get_room(room_data: RoomCreate, db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_user)):
-    # Check if room already exists
+    if room_data.trainer_id == current_user_id:
+        raise HTTPException(status_code=400, detail="You cannot start a conversation with yourself")
+    if not await is_approved_trainer(db, room_data.trainer_id):
+        raise HTTPException(status_code=404, detail="Trainer not found")
+
     stmt = select(ChatRoom).where(
         and_(ChatRoom.client_id == current_user_id, ChatRoom.trainer_id == room_data.trainer_id)
     )
-    result = await db.execute(stmt)
-    room = result.scalars().first()
-    
-    if not room:
-        room = ChatRoom(client_id=current_user_id, trainer_id=room_data.trainer_id)
-        db.add(room)
+    room = (await db.execute(stmt)).scalars().first()
+    if room:
+        return room
+
+    room = ChatRoom(client_id=current_user_id, trainer_id=room_data.trainer_id)
+    db.add(room)
+    try:
         await db.commit()
-        await db.refresh(room)
-        
+    except IntegrityError:
+        # Two concurrent requests (e.g. a double click) - the unique constraint
+        # let only one insert win, so return the room created by the other one.
+        await db.rollback()
+        return (await db.execute(stmt)).scalars().one()
+    await db.refresh(room)
     return room
 
-@app.get("/rooms", response_model=List[RoomResponse])
+
+@app.get("/rooms", response_model=list[RoomResponse])
 async def list_rooms(db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_user)):
     stmt = select(ChatRoom).where(
         or_(ChatRoom.client_id == current_user_id, ChatRoom.trainer_id == current_user_id)
     ).order_by(ChatRoom.created_at.desc())
+    rooms = (await db.execute(stmt)).scalars().all()
+    if not rooms:
+        return []
 
-    result = await db.execute(stmt)
-    rooms = result.scalars().all()
+    # One query for the latest message of every room (PostgreSQL DISTINCT ON)
+    # instead of one query per room (N+1).
+    last_messages_stmt = (
+        select(Message)
+        .where(Message.room_id.in_([room.id for room in rooms]))
+        .distinct(Message.room_id)
+        .order_by(Message.room_id, Message.created_at.desc(), Message.id.desc())
+    )
+    last_messages = {msg.room_id: msg for msg in (await db.execute(last_messages_stmt)).scalars()}
 
-    # Attach last message to each room
-    response = []
-    for room in rooms:
-        last_msg_stmt = (
-            select(Message)
-            .where(Message.room_id == room.id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
+    return [
+        RoomResponse(
+            id=room.id,
+            client_id=room.client_id,
+            trainer_id=room.trainer_id,
+            created_at=room.created_at,
+            last_message=last_messages.get(room.id),
         )
-        last_msg_result = await db.execute(last_msg_stmt)
-        last_msg = last_msg_result.scalars().first()
-        room_dict = {
-            "id": room.id,
-            "client_id": room.client_id,
-            "trainer_id": room.trainer_id,
-            "created_at": room.created_at,
-            "last_message": last_msg,
-        }
-        response.append(room_dict)
+        for room in rooms
+    ]
 
-    return response
 
-@app.get("/rooms/{room_id}/messages", response_model=List[MessageResponse])
-async def get_room_messages(room_id: int, db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_user)):
-    # Verify access to room
-    stmt = select(ChatRoom).where(ChatRoom.id == room_id)
-    result = await db.execute(stmt)
-    room = result.scalars().first()
-    
-    if not room or (room.client_id != current_user_id and room.trainer_id != current_user_id):
+@app.get("/rooms/{room_id}/messages", response_model=list[MessageResponse])
+async def get_room_messages(
+    room_id: int,
+    limit: int = Query(DEFAULT_HISTORY_LIMIT, ge=1, le=MAX_HISTORY_LIMIT),
+    before_id: int | None = Query(None, description="Return messages older than this id (pagination)"),
+    db: AsyncSession = Depends(get_db),
+    current_user_id: int = Depends(get_current_user),
+):
+    if not await get_room_for_user(db, room_id, current_user_id):
         raise HTTPException(status_code=403, detail="Access denied to this room")
-        
-    msg_stmt = select(Message).where(Message.room_id == room_id).order_by(Message.created_at.asc())
-    msg_result = await db.execute(msg_stmt)
-    return msg_result.scalars().all()
+
+    stmt = select(Message).where(Message.room_id == room_id)
+    if before_id is not None:
+        stmt = stmt.where(Message.id < before_id)
+    stmt = stmt.order_by(Message.id.desc()).limit(limit)
+    messages = (await db.execute(stmt)).scalars().all()
+    return list(reversed(messages))
+
 
 @app.websocket("/ws/chat/{room_id}")
-async def websocket_endpoint(websocket: WebSocket, room_id: int, token: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket, room_id: int, token: str = Query(...)):
     try:
         user_id = verify_token(token)
     except HTTPException:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # Verify access to room
-    stmt = select(ChatRoom).where(ChatRoom.id == room_id)
-    result = await db.execute(stmt)
-    room = result.scalars().first()
-    
-    if not room or (room.client_id != user_id and room.trainer_id != user_id):
+    # Short-lived sessions only: holding one DB connection for the whole lifetime
+    # of a WebSocket would exhaust the connection pool with a few dozen idle chats.
+    async with database.SessionLocal() as db:
+        room = await get_room_for_user(db, room_id, user_id)
+    if not room:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, room_id, user_id)
-    
+    await manager.connect(websocket, room_id)
+    last_message_at = 0.0
     try:
         while True:
-            data = await websocket.receive_text()
-            # Save to DB
-            new_message = Message(room_id=room_id, sender_id=user_id, content=data)
-            db.add(new_message)
-            await db.commit()
-            
-            # Publish to Redis
-            msg_payload = json.dumps({
+            content = (await websocket.receive_text()).strip()
+            if not content:
+                continue
+            if len(content) > MAX_MESSAGE_LENGTH:
+                await websocket.send_json({"error": f"Message longer than {MAX_MESSAGE_LENGTH} characters"})
+                continue
+            now = time.monotonic()
+            if now - last_message_at < MIN_SECONDS_BETWEEN_MESSAGES:
+                await websocket.send_json({"error": "Too many messages, slow down"})
+                continue
+            last_message_at = now
+
+            async with database.SessionLocal() as db:
+                message = Message(room_id=room_id, sender_id=user_id, content=content)
+                db.add(message)
+                await db.commit()
+                await db.refresh(message)
+
+            await redis_client.publish(REDIS_CHANNEL, json.dumps({
+                "id": message.id,
                 "room_id": room_id,
                 "sender_id": user_id,
-                "content": data
-            })
-            await redis_client.publish("chat_messages", msg_payload)
-            
+                "content": content,
+                "created_at": message.created_at.isoformat(),
+            }))
     except WebSocketDisconnect:
-        manager.disconnect(room_id, user_id)
+        pass
+    finally:
+        manager.disconnect(websocket, room_id)
+
 
 @app.get("/health")
 async def health_check():

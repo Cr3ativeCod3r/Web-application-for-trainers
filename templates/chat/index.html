@@ -454,6 +454,15 @@
     socket = new WebSocket(`${WS_BASE}/ws/chat/${encodeURIComponent(roomId)}?token=${encodeURIComponent(jwtToken)}`);
     socket.onmessage = function(e) {
       const data = JSON.parse(e.data);
+      if (data.error) {
+        // Server-side validation (message too long / sent too fast)
+        if (typeof Toastify !== 'undefined') {
+          Toastify({ text: data.error, duration: 3000, gravity: "top", position: "center" }).showToast();
+        } else {
+          console.warn(data.error);
+        }
+        return;
+      }
       if (data.sender_id !== currentUserId) {
         appendMessage(data.content, false, otherUser, data.created_at || new Date().toISOString());
         scrollToBottom();
