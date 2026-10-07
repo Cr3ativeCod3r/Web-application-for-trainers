@@ -33,9 +33,7 @@ dist/
 build/
 *.egg-info/
 
-# Docker
-.dockerignore
-# Do not ignore docker-compose.yml or Dockerfile
+# Docker: .dockerignore, Dockerfile and docker-compose.yml are tracked on purpose
 
 # OS generated files
 .DS_Store
