@@ -3,7 +3,6 @@ FROM python:3.13-slim
 # Install uv.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Change the working directory to the `app` directory
 WORKDIR /app
 
 # Enable bytecode compilation
@@ -28,6 +27,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Run the Django application
+# Static files are collected at build time and served by WhiteNoise.
+# collectstatic only needs *a* key to import settings - the real one comes from the runtime env.
+RUN SECRET_KEY=build-only-placeholder python manage.py collectstatic --noinput
+
+# Never run the application as root inside the container.
+RUN useradd --create-home --uid 1000 app && chown -R app:app /app
+USER app
+
 EXPOSE 8000
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# Production server. docker-compose.yml overrides this with runserver for local development.
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--access-logfile", "-"]
