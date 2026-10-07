@@ -38,3 +38,20 @@ def test_post_content_is_sanitized_on_save():
     post.refresh_from_db()
     assert '<script' not in post.content
     assert '<p>ok</p>' in post.content
+
+
+def test_post_form_rejects_oversized_content():
+    from apps.trainers.forms import MAX_POST_CONTENT_BYTES, TrainerPostForm
+
+    huge_image = '<p><img src="data:image/png;base64,' + 'A' * MAX_POST_CONTENT_BYTES + '"></p>'
+    form = TrainerPostForm(data={'title': 'Post', 'content': huge_image})
+
+    assert not form.is_valid()
+    assert 'content' in form.errors
+
+
+def test_post_form_accepts_regular_content():
+    from apps.trainers.forms import TrainerPostForm
+
+    form = TrainerPostForm(data={'title': 'Post', 'content': '<p>Trening siłowy</p>'})
+    assert form.is_valid(), form.errors
