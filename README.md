@@ -146,6 +146,31 @@ GitHub Actions runs lint, `manage.py check`, `makemigrations --check` and both t
 
 Before this layout the chat tables lived in the main database. Stop the chat service, run `scripts/move_chat_tables.sh` (copies `chat_rooms`/`chat_messages` to the chat database and drops them from the main one), start the chat service and run `python manage.py publish_user_snapshots`.
 
+## Project history: October 2026 security and architecture review
+
+The first version (June–July 2026) was built feature by feature. In October I reviewed the whole codebase with an AI code reviewer (Claude Code), went through every finding, and fixed them as small, separate commits. That is why about 40 commits share the same date.
+
+**What was wrong**
+
+- Security: a hardcoded `SECRET_KEY` fallback, stored XSS in trainer posts, user content injected through `innerHTML`, an open redirect after login, admin actions that changed state on GET, and a user-info API that leaked e-mails and allowed account enumeration.
+- Data integrity: registration was not atomic (an e-mail could be queued for a user that was rolled back), approving a profile update skipped some fields, and two admins could move a trainer into an impossible status.
+- Service boundaries: the chat service read Django's users table directly and Django read the chat tables, so a migration on either side could break the other.
+- Tooling: tests ran on SQLite although the models use Postgres-only features, and there was no CI or linter.
+
+**What changed**
+
+Settings are secure by default, HTML is sanitized with an allow-list, and state-changing endpoints are POST-only. Requests run in a single transaction, and e-mails are queued with `on_commit`. The trainer status is now a state machine with row locks. Each service has its own database, and user data flows to the chat through a transactional outbox and Redis Streams. Chat auth uses short-lived ES256 tokens and one-time WebSocket tickets. Tests run on PostgreSQL in GitHub Actions together with ruff and a migration check. The reasoning behind each decision is in "Design decisions and trade-offs" above.
+
+**What I learned**
+
+- Publishing an event and committing a transaction are two separate writes. Without an outbox, one of them can happen without the other.
+- Two services sharing a database are coupled through the schema, even when the code looks separate.
+- Checking a token once is not enough when an account can be banned while the token is still valid.
+- Tests on a different database engine than production give false confidence.
+- Secure defaults belong in the code (fail without `SECRET_KEY`, `DEBUG` off, POST-only actions), not in a checklist someone has to remember.
+- When two requests can change the same row, checking its state is not enough. The check and the write need a lock, or a constraint the database enforces.
+- An AI reviewer finds problems quickly, but each fix still has to be understood and tested. That is why every finding is its own commit, and most come with a test.
+
 ## Known limitations / next steps
 
 - Booking and calendar integration (Google Calendar API).
@@ -153,3 +178,6 @@ Before this layout the chat tables lived in the main database. Stop the chat ser
 - A dead-letter stream and metrics (consumer lag, outbox backlog) for the event pipeline.
 - Key rotation for chat tokens (`kid` header + several public keys on the verifier side).
 - Deployment pipeline (CD) to a cloud provider.
+- Split the chat service's `main.py` into routers and a service layer.
+- Static type checking (mypy) in CI.
+- Move the chat page's inline JavaScript into a module and test it.
