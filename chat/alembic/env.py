@@ -56,16 +56,10 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and name not in ["chat_rooms", "chat_messages", "alembic_version"]:
-        return False
-    return True
-
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection, 
         target_metadata=target_metadata,
-        include_object=include_object
     )
 
     with context.begin_transaction():

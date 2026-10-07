@@ -7,6 +7,12 @@ if not SECRET_KEY:
 
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 REDIS_CHANNEL = 'chat_messages'
+# Internal commands for every chat instance (e.g. "close this user's sockets").
+CONTROL_CHANNEL = 'chat_control'
+
+# Integration events published by the main app (see apps/events/contracts.py there).
+USER_EVENTS_STREAM = 'coachly.users.v1'
+USER_EVENTS_GROUP = 'chat-service'
 
 CORS_ORIGINS = [
     origin.strip()

@@ -1,7 +1,15 @@
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from tests.conftest import APPROVED_TRAINER_ID, CLIENT_ID, OTHER_CLIENT_ID, PENDING_TRAINER_ID, auth, make_token
+from tests.conftest import (
+    APPROVED_TRAINER_ID,
+    BANNED_CLIENT_ID,
+    CLIENT_ID,
+    OTHER_CLIENT_ID,
+    PENDING_TRAINER_ID,
+    auth,
+    make_token,
+)
 
 
 def create_room(client, user_id=CLIENT_ID, trainer_id=APPROVED_TRAINER_ID):
@@ -81,3 +89,14 @@ class TestWebSocket:
 
         history = client.get(f'/rooms/{room_id}/messages', headers=auth(CLIENT_ID)).json()
         assert history == []
+
+
+class TestDisabledAccounts:
+    def test_banned_user_cannot_use_api_with_valid_token(self, client):
+        assert client.get('/rooms', headers=auth(BANNED_CLIENT_ID)).status_code == 403
+
+    def test_unknown_user_is_rejected(self, client):
+        assert client.get('/rooms', headers=auth(999)).status_code == 403
+
+    def test_cannot_open_room_with_banned_trainer(self, client):
+        assert create_room(client, trainer_id=BANNED_CLIENT_ID).status_code == 404

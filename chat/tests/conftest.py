@@ -13,13 +13,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import fakeredis  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
 import database  # noqa: E402
 import main  # noqa: E402
 from config import SECRET_KEY  # noqa: E402
+from models import ChatUser  # noqa: E402
 
 # NullPool: TestClient runs the app in its own event loop, and asyncpg connections
 # cannot be shared between loops.
@@ -31,24 +31,35 @@ APPROVED_TRAINER_ID = 10
 PENDING_TRAINER_ID = 11
 CLIENT_ID = 20
 OTHER_CLIENT_ID = 21
+BANNED_CLIENT_ID = 22
+
+
+def chat_user(user_id: int, *, trainer: bool = False, active: bool = True, version: int = 1) -> ChatUser:
+    return ChatUser(
+        user_id=user_id,
+        display_name=f"User {user_id}",
+        avatar_url="",
+        trainer_username=f"trainer-{user_id}" if trainer else None,
+        is_active=active,
+        accepts_new_conversations=trainer and active,
+        is_deleted=False,
+        version=version,
+    )
 
 
 async def _reset_schema():
     async with test_engine.begin() as conn:
         await conn.run_sync(database.Base.metadata.drop_all)
         await conn.run_sync(database.Base.metadata.create_all)
-        # Minimal stand-in for Django's users table, which the service reads.
-        await conn.execute(text("DROP TABLE IF EXISTS accounts_customuser"))
-        await conn.execute(text(
-            "CREATE TABLE accounts_customuser (id integer PRIMARY KEY, status varchar(30), is_active boolean)"
-        ))
-        await conn.execute(text(
-            "INSERT INTO accounts_customuser VALUES "
-            f"({APPROVED_TRAINER_ID}, 'APPROVED_TRAINER', true), "
-            f"({PENDING_TRAINER_ID}, 'PENDING_APPLICATION', true), "
-            f"({CLIENT_ID}, 'REGISTERED', true), "
-            f"({OTHER_CLIENT_ID}, 'REGISTERED', true)"
-        ))
+    async with database.SessionLocal() as db:
+        db.add_all([
+            chat_user(APPROVED_TRAINER_ID, trainer=True),
+            chat_user(PENDING_TRAINER_ID),
+            chat_user(CLIENT_ID),
+            chat_user(OTHER_CLIENT_ID),
+            chat_user(BANNED_CLIENT_ID, active=False),
+        ])
+        await db.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -56,9 +67,15 @@ def reset_db():
     asyncio.run(_reset_schema())
 
 
+async def _idle(*_args):
+    await asyncio.Event().wait()
+
+
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setattr(main, 'redis_client', fakeredis.aioredis.FakeRedis(decode_responses=True))
+    # The stream consumer is exercised directly in test_user_events.py.
+    monkeypatch.setattr(main, 'run_consumer', _idle)
     with TestClient(main.app) as test_client:
         yield test_client
 

@@ -7,13 +7,14 @@ from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import and_, or_, select, text
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import database
 from auth import get_current_user, verify_token
 from config import (
+    CONTROL_CHANNEL,
     CORS_ORIGINS,
     DEFAULT_HISTORY_LIMIT,
     MAX_HISTORY_LIMIT,
@@ -24,8 +25,9 @@ from config import (
 )
 from connection_manager import ConnectionManager
 from database import get_db
-from models import ChatRoom, Message
+from models import ChatRoom, ChatUser, Message
 from schemas import MessageResponse, RoomCreate, RoomResponse
+from user_events import run_consumer
 
 logger = logging.getLogger(__name__)
 
@@ -35,20 +37,22 @@ manager = ConnectionManager()
 
 async def redis_listener():
     """
-    Fan-out of chat messages published by any instance of this service to the
-    WebSockets connected to *this* instance. Reconnects if Redis goes away
-    instead of dying silently and leaving the instance deaf.
+    Fan-out of messages published by any instance of this service to the WebSockets
+    connected to *this* instance, plus control commands (closing a banned user's
+    sockets). Reconnects if Redis goes away instead of leaving the instance deaf.
     """
     while True:
         try:
             pubsub = redis_client.pubsub()
-            await pubsub.subscribe(REDIS_CHANNEL)
+            await pubsub.subscribe(REDIS_CHANNEL, CONTROL_CHANNEL)
             async for message in pubsub.listen():
                 if message["type"] != "message":
                     continue
                 data = json.loads(message["data"])
-                room_id = data.get("room_id")
-                if room_id:
+                if message["channel"] == CONTROL_CHANNEL:
+                    if data.get("type") == "user_disabled":
+                        await manager.disconnect_user(int(data["user_id"]))
+                elif room_id := data.get("room_id"):
                     await manager.broadcast_to_room(room_id, message["data"])
         except asyncio.CancelledError:
             raise
@@ -59,9 +63,13 @@ async def redis_listener():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    listener = asyncio.create_task(redis_listener())
+    tasks = [
+        asyncio.create_task(redis_listener()),
+        asyncio.create_task(run_consumer(redis_client, database.SessionLocal)),
+    ]
     yield
-    listener.cancel()
+    for task in tasks:
+        task.cancel()
     await redis_client.aclose()
 
 
@@ -85,23 +93,29 @@ async def get_room_for_user(db: AsyncSession, room_id: int, user_id: int) -> Cha
     return (await db.execute(stmt)).scalars().first()
 
 
-async def is_approved_trainer(db: AsyncSession, user_id: int) -> bool:
-    # Users live in Django's table; both services share the same PostgreSQL database.
-    result = await db.execute(
-        text(
-            "SELECT 1 FROM accounts_customuser "
-            "WHERE id = :id AND status = 'APPROVED_TRAINER' AND is_active"
-        ),
-        {"id": user_id},
-    )
-    return result.first() is not None
+async def get_chat_user(db: AsyncSession, user_id: int) -> ChatUser | None:
+    return await db.get(ChatUser, user_id)
+
+
+async def get_current_participant(
+    db: AsyncSession = Depends(get_db), user_id: int = Depends(get_current_user)
+) -> int:
+    """
+    A valid token is not enough: the account may have been banned or deleted after
+    the token was issued. The local user copy is kept current by the event stream.
+    """
+    user = await get_chat_user(db, user_id)
+    if user is None or not user.can_chat:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is not allowed to chat")
+    return user_id
 
 
 @app.post("/rooms", response_model=RoomResponse)
-async def create_or_get_room(room_data: RoomCreate, db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_user)):
+async def create_or_get_room(room_data: RoomCreate, db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_participant)):
     if room_data.trainer_id == current_user_id:
         raise HTTPException(status_code=400, detail="You cannot start a conversation with yourself")
-    if not await is_approved_trainer(db, room_data.trainer_id):
+    trainer = await get_chat_user(db, room_data.trainer_id)
+    if trainer is None or not (trainer.can_chat and trainer.accepts_new_conversations):
         raise HTTPException(status_code=404, detail="Trainer not found")
 
     stmt = select(ChatRoom).where(
@@ -125,7 +139,7 @@ async def create_or_get_room(room_data: RoomCreate, db: AsyncSession = Depends(g
 
 
 @app.get("/rooms", response_model=list[RoomResponse])
-async def list_rooms(db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_user)):
+async def list_rooms(db: AsyncSession = Depends(get_db), current_user_id: int = Depends(get_current_participant)):
     stmt = select(ChatRoom).where(
         or_(ChatRoom.client_id == current_user_id, ChatRoom.trainer_id == current_user_id)
     ).order_by(ChatRoom.created_at.desc())
@@ -161,7 +175,7 @@ async def get_room_messages(
     limit: int = Query(DEFAULT_HISTORY_LIMIT, ge=1, le=MAX_HISTORY_LIMIT),
     before_id: int | None = Query(None, description="Return messages older than this id (pagination)"),
     db: AsyncSession = Depends(get_db),
-    current_user_id: int = Depends(get_current_user),
+    current_user_id: int = Depends(get_current_participant),
 ):
     if not await get_room_for_user(db, room_id, current_user_id):
         raise HTTPException(status_code=403, detail="Access denied to this room")
@@ -185,12 +199,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, token: str = Qu
     # Short-lived sessions only: holding one DB connection for the whole lifetime
     # of a WebSocket would exhaust the connection pool with a few dozen idle chats.
     async with database.SessionLocal() as db:
-        room = await get_room_for_user(db, room_id, user_id)
+        user = await get_chat_user(db, user_id)
+        room = await get_room_for_user(db, room_id, user_id) if user and user.can_chat else None
     if not room:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, room_id)
+    await manager.connect(websocket, room_id, user_id)
     last_message_at = 0.0
     try:
         while True:
@@ -222,7 +237,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, token: str = Qu
     except WebSocketDisconnect:
         pass
     finally:
-        manager.disconnect(websocket, room_id)
+        manager.disconnect(websocket, room_id, user_id)
 
 
 @app.get("/health")
