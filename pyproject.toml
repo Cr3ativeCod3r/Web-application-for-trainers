@@ -36,6 +36,8 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "core.test_settings"
 python_files = ["test_*.py", "*_test.py"]
+# The chat microservice has its own test suite (run from chat/).
+testpaths = ["apps"]
 
 [tool.uv.workspace]
 members = [
