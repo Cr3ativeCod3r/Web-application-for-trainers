@@ -118,6 +118,10 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASS', 'trainpass'),
         'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
         'PORT': os.environ.get('DB_PORT', '5432'),
+        # Every request is one transaction: multi-step writes in views (profile +
+        # many-to-many, user + outbox event) either all commit or none do.
+        # Views that wait on slow external calls opt out (non_atomic_requests).
+        'ATOMIC_REQUESTS': True,
     }
 }
 
