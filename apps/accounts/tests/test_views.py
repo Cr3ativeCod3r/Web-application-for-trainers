@@ -144,3 +144,25 @@ class TestAccountViews:
 
         user.refresh_from_db()
         assert user.is_active is False
+
+
+@pytest.mark.django_db
+class TestLoginRedirect:
+    password = 'strongpassword123'
+
+    def _login(self, client, next_url):
+        user = UserFactory(is_active=True)
+        user.set_password(self.password)
+        user.save()
+        url = reverse('accounts:login') + f'?next={next_url}'
+        return client.post(url, {'username': user.email, 'password': self.password})
+
+    def test_redirects_to_safe_next_url(self, client):
+        response = self._login(client, '/wiadomosci/')
+        assert response.status_code == 302
+        assert response.url == '/wiadomosci/'
+
+    def test_ignores_external_next_url(self, client):
+        response = self._login(client, 'https://evil.example.com/')
+        assert response.status_code == 302
+        assert response.url == reverse('trainers:home_search')

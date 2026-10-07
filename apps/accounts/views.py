@@ -76,10 +76,9 @@ class ClientLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
-        next_url = self.request.GET.get('next')
-        if next_url:
-            return next_url
-        return reverse_lazy('trainers:home_search')
+        # LoginView.get_redirect_url() validates `next` with url_has_allowed_host_and_scheme,
+        # so only same-host redirects are honoured (no open redirect to phishing sites).
+        return self.get_redirect_url() or str(reverse_lazy('trainers:home_search'))
 
     def form_valid(self, form):
         remember_me = form.cleaned_data.get('remember_me')
