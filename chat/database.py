@@ -5,13 +5,10 @@ from sqlalchemy.orm import declarative_base
 
 from config import SQL_ECHO
 
-DB_USER = os.environ.get('DB_USER', 'trainuser')
-DB_PASS = os.environ.get('DB_PASS', 'trainpass')
-DB_HOST = os.environ.get('DB_HOST', 'db')
-DB_PORT = os.environ.get('DB_PORT', '5432')
-DB_NAME = os.environ.get('DB_NAME', 'trainapp')
-
-SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# The chat service owns its database; it never connects to the main app's one.
+SQLALCHEMY_DATABASE_URL = os.environ.get(
+    'DATABASE_URL', 'postgresql+asyncpg://chat:chat@chat_db:5432/chat'
+)
 
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=SQL_ECHO, pool_pre_ping=True)
 

@@ -10,6 +10,18 @@ services:
     ports:
       - "5433:5432"
 
+  # Database-per-service: the chat microservice owns this one exclusively.
+  chat_db:
+    image: postgres:15-alpine
+    volumes:
+      - chat_postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chat
+      - POSTGRES_USER=chat
+      - POSTGRES_PASSWORD=${CHAT_DB_PASS:-chat}
+    ports:
+      - "5434:5432"
+
   web:
     build: .
     ports:
@@ -38,6 +50,7 @@ services:
     command: >
       sh -c "until uv run python manage.py migrate; do echo 'Waiting for db...'; sleep 2; done &&
              uv run python manage.py createadmin &&
+             uv run python manage.py publish_user_snapshots &&
              uv run python manage.py runserver 0.0.0.0:8000"
 
   redis:
@@ -94,20 +107,17 @@ services:
       - ./chat:/app
       - /app/.venv
     environment:
-      - DB_HOST=db
-      - DB_NAME=trainapp
-      - DB_USER=trainuser
-      - DB_PASS=${DB_PASS:-trainpass}
-      - DB_PORT=${DB_PORT:-5432}
+      - DATABASE_URL=postgresql+asyncpg://chat:${CHAT_DB_PASS:-chat}@chat_db:5432/chat
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
       - CHAT_CORS_ORIGINS=${CHAT_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     depends_on:
-      - db
+      - chat_db
       - redis
     command: >
       sh -c "alembic upgrade head &&
              uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
 volumes:
   postgres_data:
+  chat_postgres_data:
 
