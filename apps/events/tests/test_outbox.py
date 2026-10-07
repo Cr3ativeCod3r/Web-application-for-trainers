@@ -123,3 +123,29 @@ class TestRelay:
 
         assert OutboxEvent.objects.exists()
         assert not OutboxEvent.objects.filter(published_at__isnull=False).exists()
+
+
+@pytest.mark.django_db
+class TestAvatarInSnapshot:
+    def test_snapshot_uses_stable_avatar_url(self, client):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        profile = TrainerProfileFactory(user=UserFactory(status=TrainerStatus.APPROVED_TRAINER))
+        profile.profile_picture = SimpleUploadedFile('me.png', b'fake-image', content_type='image/png')
+        profile.save()
+
+        avatar_url = user_events(profile.user_id).last().payload['avatar_url']
+
+        assert avatar_url.startswith(f'/api/avatar/{profile.user_id}/?v=')
+        response = client.get(avatar_url)
+        assert response.status_code == 302
+        assert response.url == profile.profile_picture.url
+
+    def test_avatar_of_non_approved_user_is_not_served(self, client):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        profile = TrainerProfileFactory(user=UserFactory(status=TrainerStatus.PENDING_APPLICATION))
+        profile.profile_picture = SimpleUploadedFile('me.png', b'fake-image', content_type='image/png')
+        profile.save()
+
+        assert client.get(f'/api/avatar/{profile.user_id}/').status_code == 404

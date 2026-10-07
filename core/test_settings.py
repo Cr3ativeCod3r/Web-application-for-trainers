@@ -39,3 +39,8 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # The Django test client speaks plain HTTP; redirecting it to https:// would turn
 # every response into a 301. HTTPS enforcement is a deployment concern.
 SECURE_SSL_REDIRECT = False
+
+# Uploaded files from tests go to a throwaway directory, not the project's media/.
+import tempfile  # noqa: E402
+
+MEDIA_ROOT = tempfile.mkdtemp(prefix='coachly-test-media-')

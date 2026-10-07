@@ -5,8 +5,11 @@ Other services keep their own copy of this data instead of reading our tables.
 Every event carries a full snapshot (not a diff), so a consumer that missed some
 events converges as soon as it receives the next one.
 """
+import hashlib
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.urls import reverse
 
 from apps.events.contracts import USER_DELETED, USER_EVENTS_STREAM, USER_UPDATED
 from apps.events.services import record_event
@@ -19,13 +22,27 @@ User = get_user_model()
 SNAPSHOT_SCHEMA_VERSION = 1
 
 
+def stable_avatar_url(user) -> str:
+    """
+    A URL that stays valid for as long as the picture exists. The storage URL
+    itself cannot be shared with other services: on R2/S3 without a custom domain
+    it is a signed URL that expires after an hour. The version parameter changes
+    with the file, so caches pick up a new picture.
+    """
+    profile = getattr(user, 'trainer_profile', None)
+    if profile is None or not profile.profile_picture:
+        return ''
+    version = hashlib.sha256(profile.profile_picture.name.encode()).hexdigest()[:12]
+    return f"{reverse('accounts:avatar', args=[user.pk])}?v={version}"
+
+
 def build_user_snapshot(user) -> dict:
     info = get_user_display_info(user)
     return {
         'schema_version': SNAPSHOT_SCHEMA_VERSION,
         'user_id': user.pk,
         'display_name': info['name'],
-        'avatar_url': info['avatar_url'],
+        'avatar_url': stable_avatar_url(user),
         'trainer_username': info['trainer_username'],
         'is_active': user.is_active,
         # Clients may only open conversations with approved, active trainers.

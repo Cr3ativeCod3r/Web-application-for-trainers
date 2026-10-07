@@ -4,17 +4,21 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
-from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, View
 from django.views.generic.edit import CreateView
 from django_ratelimit.decorators import ratelimit
 
+from apps.trainers.models import TrainerProfile
+
 from .chat_tokens import issue_chat_token
 from .forms import ClientRegistrationForm, CustomAuthenticationForm, TrainerRegistrationForm
+from .models import TrainerStatus
 from .selectors import get_user_display_info
 from .services import AuthService
 
@@ -176,3 +180,19 @@ def chat_token_api(request):
     response = JsonResponse({'token': token, 'expires_in': expires_in})
     response['Cache-Control'] = 'no-store'
     return response
+
+
+@cache_control(public=True, max_age=300)
+def avatar_view(request, user_id):
+    """
+    Redirects to the current URL of an approved trainer's profile picture.
+    Used by other services, which must not store storage URLs that expire.
+    """
+    profile = get_object_or_404(
+        TrainerProfile.objects.only('profile_picture'),
+        user_id=user_id,
+        user__status=TrainerStatus.APPROVED_TRAINER,
+    )
+    if not profile.profile_picture:
+        raise Http404
+    return redirect(profile.profile_picture.url)

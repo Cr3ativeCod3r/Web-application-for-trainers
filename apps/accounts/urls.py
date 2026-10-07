@@ -40,4 +40,5 @@ urlpatterns = [
     # Chat
     path('wiadomosci/', views.ChatView.as_view(), name='chat'),
     path('api/chat/token/', views.chat_token_api, name='chat_token'),
+    path('api/avatar/<int:user_id>/', views.avatar_view, name='avatar'),
 ]
