@@ -9,6 +9,8 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from apps.accounts.models import TrainerStatus
 from apps.trainers.models import Sport, TrainerPost, TrainerProfile
@@ -48,50 +50,71 @@ def privacy_view(request):
 def quiz_view(request):
     return render(request, 'pages/quiz.html')
 
+MAX_QUIZ_ANSWERS = 20
+MAX_QUIZ_TEXT_LENGTH = 500
+
+
+def _clean_quiz_answers(raw_answers) -> list[dict] | None:
+    """Validates the client payload; every character ends up in a paid LLM prompt."""
+    if not isinstance(raw_answers, list) or not 0 < len(raw_answers) <= MAX_QUIZ_ANSWERS:
+        return None
+    answers = []
+    for item in raw_answers:
+        if not isinstance(item, dict):
+            return None
+        answers.append({
+            'question': str(item.get('question', ''))[:MAX_QUIZ_TEXT_LENGTH],
+            'answer': str(item.get('answer', ''))[:MAX_QUIZ_TEXT_LENGTH],
+        })
+    return answers
+
+
+@require_POST
+@ratelimit(key='ip', rate='5/h', block=True)
 def quiz_submit_api(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            answers = data.get('answers', [])
+    try:
+        payload = json.loads(request.body)
+    except ValueError:
+        return JsonResponse({'error': 'Nieprawidłowe dane.'}, status=400)
 
-            if not answers:
-                return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
+    answers = _clean_quiz_answers(payload.get('answers') if isinstance(payload, dict) else None)
+    if answers is None:
+        return JsonResponse({'error': 'Brak odpowiedzi lub nieprawidłowy format.'}, status=400)
 
-            approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
-            available_sports = list(Sport.objects.filter(trainers__in=approved_trainers).values_list('name', flat=True).distinct())
+    approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
+    available_sports = list(Sport.objects.filter(trainers__in=approved_trainers).values_list('name', flat=True).distinct())
 
-            try:
-                ai_result = get_ai_sport_recommendation(answers, available_sports)
-            except AIServiceError as e:
-                logger.error("AI Service Error: %s", str(e), exc_info=True)
-                return JsonResponse({'error': str(e)}, status=500)
+    try:
+        ai_result = get_ai_sport_recommendation(answers, available_sports)
+    except AIServiceError:
+        # Details (API errors, quota info) go to the logs, not to the browser.
+        logger.exception("AI sport recommendation failed")
+        return JsonResponse({'error': 'Nie udało się teraz przygotować rekomendacji. Spróbuj ponownie później.'}, status=502)
 
-            suggested_sport = ai_result.get('suggested_sport', '')
+    suggested_sport = ai_result.get('suggested_sport', '')
 
-            # Find recommended trainers
-            recommended_trainers = []
-            if suggested_sport:
-                matched_trainers = approved_trainers.filter(sports__name__icontains=suggested_sport).distinct()[:3]
-                for t in matched_trainers:
-                    recommended_trainers.append({
-                        'name': t.full_name,
-                        'sport': ", ".join([s.name for s in t.sports.all()]),
-                        'url': reverse('trainers:public_profile', kwargs={'username': t.username}),
-                        'location': t.location,
-                        'type': t.get_training_type_display()
-                    })
-
-            return JsonResponse({
-                'recommendation': ai_result.get('recommendation', ''),
-                'suggested_sport': suggested_sport,
-                'trainers': recommended_trainers
+    recommended_trainers = []
+    if suggested_sport:
+        matched_trainers = (
+            approved_trainers.filter(sports__name__icontains=suggested_sport)
+            .prefetch_related('sports')
+            .distinct()[:3]
+        )
+        for t in matched_trainers:
+            recommended_trainers.append({
+                'name': t.full_name,
+                'sport': ", ".join(s.name for s in t.sports.all()),
+                'url': reverse('trainers:public_profile', kwargs={'username': t.username}),
+                'location': t.location,
+                'type': t.get_training_type_display()
             })
 
-        except Exception as e:
-            logger.error("Unexpected error in quiz_submit_api: %s", str(e), exc_info=True)
-            return JsonResponse({'error': 'Wystąpił nieoczekiwany błąd serwera.'}, status=500)
+    return JsonResponse({
+        'recommendation': ai_result.get('recommendation', ''),
+        'suggested_sport': suggested_sport,
+        'trainers': recommended_trainers
+    })
 
-    return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
 
 def knowledge_base_view(request):
     query = request.GET.get('q', '').strip()
