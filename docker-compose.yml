@@ -67,6 +67,25 @@ services:
     command: >
       sh -c "uv run celery -A core worker -l info"
 
+  celery_beat:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - DB_HOST=db
+      - DB_NAME=trainapp
+      - DB_USER=trainuser
+      - DB_PASS=${DB_PASS:-trainpass}
+      - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: >
+      sh -c "uv run celery -A core beat -l info --schedule /tmp/celerybeat-schedule"
+
   chat:
     build: ./chat
     ports:

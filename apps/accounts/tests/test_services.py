@@ -35,8 +35,10 @@ class TestAuthService:
             user = AuthService.register_client('c@example.com', 'pass-1234-xyz', 'testserver', 'Jan', 'Nowak')
             mock_send_email_task.assert_not_called()
 
-        assert len(callbacks) == 1
-        callbacks[0]()
+        # Besides the e-mail, the transaction also schedules the outbox relay.
+        with patch('apps.events.tasks.relay_outbox_events.delay'):
+            for callback in callbacks:
+                callback()
         mock_send_email_task.assert_called_once_with(user.pk, 'testserver')
 
     @patch('apps.accounts.services.send_activation_email_client_task.delay')

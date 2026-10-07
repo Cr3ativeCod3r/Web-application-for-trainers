@@ -46,6 +46,7 @@ LOCAL_APPS = [
     'apps.trainers',
     'apps.pages',
     'apps.admin_dashboard',
+    'apps.events',
 ]
 
 INSTALLED_APPS = [
@@ -253,6 +254,23 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULE = {
+    # Safety net for the on-commit trigger (e.g. broker briefly down): nothing stays
+    # in the outbox for longer than this interval.
+    'relay-outbox-events': {
+        'task': 'apps.events.tasks.relay_outbox_events',
+        'schedule': 15.0,
+    },
+    'purge-published-outbox-events': {
+        'task': 'apps.events.tasks.purge_published_outbox_events',
+        'schedule': 60 * 60 * 24,
+    },
+}
+
+# Message bus for integration events between services (Redis Streams).
+EVENT_BUS_URL = os.environ.get('EVENT_BUS_URL', os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0'))
+EVENT_STREAM_MAXLEN = 100_000
 
 # Redis Cache for Rate Limiting & Performance
 CACHES = {
