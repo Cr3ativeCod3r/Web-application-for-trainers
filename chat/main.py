@@ -265,6 +265,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, ticket: str = Q
         return
 
     await manager.connect(websocket, room_id, user_id)
+    # A ban processed between the check above and connect() would have tried to
+    # close sockets this instance did not know about yet - check once more now
+    # that the socket is registered and will receive any later kick.
+    async with database.SessionLocal() as db:
+        user = await get_chat_user(db, user_id)
+    if not (user and user.can_chat):
+        manager.disconnect(websocket, room_id, user_id)
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     try:
         while True:
             content = (await websocket.receive_text()).strip()
