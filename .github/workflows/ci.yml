@@ -25,7 +25,7 @@ jobs:
           --health-retries 10
 
     env:
-      SECRET_KEY: ci-only-insecure-secret-key
+      SECRET_KEY: ci-only-insecure-secret-key-not-for-production-use
       DB_HOST: localhost
       DB_PORT: "5432"
       DB_NAME: trainapp

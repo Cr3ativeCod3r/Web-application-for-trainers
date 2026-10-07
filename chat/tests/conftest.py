@@ -6,7 +6,7 @@ import jwt
 import pytest
 
 # Configure the service before it is imported.
-os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key')
+os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key-not-for-production-use')
 os.environ.setdefault('DB_HOST', 'localhost')
 os.environ['DB_NAME'] = os.environ.get('CHAT_TEST_DB_NAME', 'chat_test')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

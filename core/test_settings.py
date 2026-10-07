@@ -1,7 +1,7 @@
 import os
 
 # Tests must not depend on a developer's .env; provide a throwaway key if none is set.
-os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key')
+os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key-not-for-production-use')
 
 from .settings import *  # noqa: E402,F401,F403
 
