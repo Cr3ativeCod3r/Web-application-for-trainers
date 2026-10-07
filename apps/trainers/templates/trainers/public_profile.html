@@ -55,17 +55,18 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         <span>Napisz wiadomość</span>
                     </button>
+                    <script src="{% static 'js/chat_client.js' %}"></script>
                     <script>
+                        const chat = new ChatClient({
+                            apiBase: "{{ chat_api_url|escapejs }}",
+                            tokenUrl: "{% url 'accounts:chat_token' %}",
+                            csrfToken: "{{ csrf_token }}",
+                        });
                         async function startChat(trainerId) {
-                            const jwtToken = "{{ jwt_token }}";
-                            const API_BASE = "{{ chat_api_url }}";
                             try {
-                                const res = await fetch(API_BASE + "/rooms", {
+                                const res = await chat.request("/rooms", {
                                     method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': 'Bearer ' + jwtToken
-                                    },
+                                    headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ trainer_id: trainerId })
                                 });
                                 if (res.ok) {

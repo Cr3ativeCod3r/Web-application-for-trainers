@@ -99,7 +99,21 @@ class TrainerProfileUpdateForm(forms.ModelForm):
 
 
 
+# Images pasted into the editor are stored inline as base64, so without a cap a
+# single post could put tens of megabytes into one database row and every page
+# that lists it. 2 MB leaves room for a few compressed photos.
+MAX_POST_CONTENT_BYTES = 2 * 1024 * 1024
+
+
 class TrainerPostForm(forms.ModelForm):
+    def clean_content(self):
+        content = self.cleaned_data['content']
+        if len(content.encode('utf-8')) > MAX_POST_CONTENT_BYTES:
+            raise forms.ValidationError(
+                "Treść posta jest za duża (maks. 2 MB). Zmniejsz lub usuń wklejone zdjęcia."
+            )
+        return content
+
     class Meta:
         model = TrainerPost
         fields = ['title', 'image', 'content']

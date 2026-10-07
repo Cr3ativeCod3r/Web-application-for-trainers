@@ -10,6 +10,18 @@ services:
     ports:
       - "5433:5432"
 
+  # Database-per-service: the chat microservice owns this one exclusively.
+  chat_db:
+    image: postgres:15-alpine
+    volumes:
+      - chat_postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chat
+      - POSTGRES_USER=chat
+      - POSTGRES_PASSWORD=${CHAT_DB_PASS:-chat}
+    ports:
+      - "5434:5432"
+
   web:
     build: .
     ports:
@@ -17,6 +29,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
     environment:
       - DEBUG=1
       - DJANGO_SETTINGS_MODULE=core.settings
@@ -27,6 +40,7 @@ services:
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
@@ -38,6 +52,7 @@ services:
     command: >
       sh -c "until uv run python manage.py migrate; do echo 'Waiting for db...'; sleep 2; done &&
              uv run python manage.py createadmin &&
+             uv run python manage.py publish_user_snapshots &&
              uv run python manage.py runserver 0.0.0.0:8000"
 
   redis:
@@ -50,6 +65,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
     environment:
       - DEBUG=1
       - DJANGO_SETTINGS_MODULE=core.settings
@@ -59,6 +75,7 @@ services:
       - DB_PASS=${DB_PASS:-trainpass}
       - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
     depends_on:
@@ -67,6 +84,27 @@ services:
     command: >
       sh -c "uv run celery -A core worker -l info"
 
+  celery_beat:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - DB_HOST=db
+      - DB_NAME=trainapp
+      - DB_USER=trainuser
+      - DB_PASS=${DB_PASS:-trainpass}
+      - DB_PORT=${DB_PORT:-5432}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private.pem
+    depends_on:
+      - redis
+    command: >
+      sh -c "uv run celery -A core beat -l info --schedule /tmp/celerybeat-schedule"
+
   chat:
     build: ./chat
     ports:
@@ -74,21 +112,25 @@ services:
     volumes:
       - ./chat:/app
       - /app/.venv
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     environment:
-      - DB_HOST=db
-      - DB_NAME=trainapp
-      - DB_USER=trainuser
-      - DB_PASS=${DB_PASS:-trainpass}
-      - DB_PORT=${DB_PORT:-5432}
+      - DATABASE_URL=postgresql+asyncpg://chat:${CHAT_DB_PASS:-chat}@chat_db:5432/chat
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      # Only the public key: the chat service can verify tokens, not issue them.
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public.pem
       - CHAT_CORS_ORIGINS=${CHAT_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     depends_on:
-      - db
+      - chat_db
       - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     command: >
       sh -c "alembic upgrade head &&
              uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
 volumes:
   postgres_data:
+  chat_postgres_data:
 

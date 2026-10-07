@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from apps.accounts.models import InvalidStatusTransition
 from apps.trainers import services
 from apps.trainers.models import TrainerPost, TrainerProfile, TrainerProfileUpdate
 
@@ -58,8 +59,12 @@ def admin_dashboard_view(request):
 def approve_trainer_view(request, profile_id):
     """Approve a pending trainer application."""
     profile = get_object_or_404(TrainerProfile, id=profile_id)
-    services.approve_trainer(profile)
-    messages.success(request, f"Trener {profile.full_name} został zatwierdzony!")
+    try:
+        services.approve_trainer(profile)
+    except InvalidStatusTransition:
+        messages.error(request, f"Nie można zatwierdzić konta {profile.full_name} w obecnym statusie.")
+    else:
+        messages.success(request, f"Trener {profile.full_name} został zatwierdzony!")
     return redirect('admin_dashboard:dashboard')
 
 
@@ -115,8 +120,12 @@ superuser_required = user_passes_test(lambda u: u.is_active and u.is_superuser)
 def ban_trainer_view(request, profile_id):
     """Ban a trainer account."""
     profile = get_object_or_404(TrainerProfile, id=profile_id)
-    services.ban_trainer(profile)
-    messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
+    try:
+        services.ban_trainer(profile)
+    except InvalidStatusTransition:
+        messages.error(request, f"Konta {profile.full_name} nie można zawiesić w obecnym statusie.")
+    else:
+        messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=active')
 
 
@@ -126,8 +135,12 @@ def ban_trainer_view(request, profile_id):
 def unban_trainer_view(request, profile_id):
     """Unban a trainer account."""
     profile = get_object_or_404(TrainerProfile, id=profile_id)
-    services.unban_trainer(profile)
-    messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
+    try:
+        services.unban_trainer(profile)
+    except InvalidStatusTransition:
+        messages.error(request, f"Konto {profile.full_name} nie jest zawieszone.")
+    else:
+        messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=active')
 
 

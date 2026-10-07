@@ -3,26 +3,28 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import InvalidTokenError
 
-from config import SECRET_KEY
+from config import JWT_ALGORITHMS, JWT_AUDIENCE, JWT_ISSUER, JWT_PUBLIC_KEY
 
 security = HTTPBearer()
 
 
 def verify_token(token: str) -> int:
     """
-    Validates a SimpleJWT access token issued by Django and returns the user id.
+    Validates a chat access token issued by the main app and returns the user id.
 
-    The token_type check matters: SimpleJWT refresh tokens are signed with the same
-    key and also carry user_id, but they are long-lived and must not grant access.
+    The algorithm list is fixed: accepting the algorithm named in the token header
+    would let an attacker sign an HS256 token using the *public* key as the secret.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        if payload.get("token_type") != "access":
-            raise InvalidTokenError("Not an access token")
-        user_id = payload.get("user_id")
-        if user_id is None:
-            raise InvalidTokenError("Missing user_id")
-        return int(user_id)
+        payload = jwt.decode(
+            token,
+            JWT_PUBLIC_KEY,
+            algorithms=JWT_ALGORITHMS,
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+            options={'require': ['exp', 'iat', 'sub', 'aud', 'iss']},
+        )
+        return int(payload['sub'])
     except (InvalidTokenError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

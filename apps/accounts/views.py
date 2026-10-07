@@ -4,18 +4,22 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
-from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, View
 from django.views.generic.edit import CreateView
 from django_ratelimit.decorators import ratelimit
-from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.trainers.models import TrainerProfile
+
+from .chat_tokens import issue_chat_token
 from .forms import ClientRegistrationForm, CustomAuthenticationForm, TrainerRegistrationForm
 from .models import TrainerStatus
-from .selectors import get_user_display_info, users_share_chat_room
+from .selectors import get_user_display_info
 from .services import AuthService
 
 User = get_user_model()
@@ -155,7 +159,6 @@ class ChatView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         info = get_user_display_info(self.request.user)
         context.update({
-            'jwt_token': str(RefreshToken.for_user(self.request.user).access_token),
             'current_user_name': info['name'],
             'current_user_avatar': info['avatar_url'],
             'chat_api_url': settings.CHAT_API_URL,
@@ -165,20 +168,31 @@ class ChatView(LoginRequiredMixin, TemplateView):
 
 
 @login_required
-def user_info_api(request, user_id):
+@require_POST
+@ratelimit(key='user', rate='30/m', block=True)
+def chat_token_api(request):
     """
-    Returns display info (name + avatar) for a chat partner - used by the chat JS.
-
-    Approved trainers are public anyway; any other user is only visible to people
-    they actually have a conversation with, so ids cannot be enumerated to harvest
-    names of all clients.
+    Issues a short-lived token for the chat service to the logged-in user. The page
+    calls it when it needs a token, so no long-lived token is embedded in the HTML.
+    POST + CSRF: another site must not be able to make the browser request one.
     """
-    target = User.objects.select_related('trainer_profile', 'client_profile').filter(pk=user_id).first()
-    if target is None:
-        return JsonResponse({'error': 'not found'}, status=404)
+    token, expires_in = issue_chat_token(request.user)
+    response = JsonResponse({'token': token, 'expires_in': expires_in})
+    response['Cache-Control'] = 'no-store'
+    return response
 
-    is_public_trainer = target.status == TrainerStatus.APPROVED_TRAINER
-    if not (is_public_trainer or target.pk == request.user.pk or users_share_chat_room(request.user.pk, target.pk)):
-        return JsonResponse({'error': 'not found'}, status=404)
 
-    return JsonResponse(get_user_display_info(target))
+@cache_control(public=True, max_age=300)
+def avatar_view(request, user_id):
+    """
+    Redirects to the current URL of an approved trainer's profile picture.
+    Used by other services, which must not store storage URLs that expire.
+    """
+    profile = get_object_or_404(
+        TrainerProfile.objects.only('profile_picture'),
+        user_id=user_id,
+        user__status=TrainerStatus.APPROVED_TRAINER,
+    )
+    if not profile.profile_picture:
+        raise Http404
+    return redirect(profile.profile_picture.url)

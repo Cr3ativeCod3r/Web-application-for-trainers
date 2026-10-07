@@ -95,3 +95,33 @@ class TestTrainersViews:
         response = client.get(url)
         assert response.status_code == 200
         assert response.context['profile'] == profile
+
+
+@pytest.mark.django_db
+def test_failed_application_leaves_nothing_behind(client):
+    """
+    The view writes in several steps (status + profile, then sports via save_m2m).
+    If anything fails after the first write, the request transaction must roll
+    everything back instead of leaving a half-created application.
+    """
+    from unittest.mock import patch
+
+    from apps.trainers.models import Sport, TrainerProfile
+
+    user = UserFactory(status=TrainerStatus.REGISTERED, is_active=True)
+    client.force_login(user)
+    sport = Sport.objects.create(name='Boks')
+    data = {
+        'username': 'jan-trener', 'full_name': 'Jan', 'sports': [sport.pk], 'location': 'Kraków',
+        'headline': 'Trener', 'description': 'Opis', 'hourly_rate': '100',
+        'contact_email': 'jan@example.com', 'training_type': 'STATIONARY', 'gender': 'M',
+    }
+
+    # Fail at the last step of the view, after every write has been issued.
+    with patch('apps.trainers.views.messages.success', side_effect=RuntimeError('boom')):
+        with pytest.raises(RuntimeError):
+            client.post(reverse('trainers:apply'), data)
+
+    user.refresh_from_db()
+    assert user.status == TrainerStatus.REGISTERED
+    assert not TrainerProfile.objects.filter(user=user).exists()

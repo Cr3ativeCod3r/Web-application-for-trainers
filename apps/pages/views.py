@@ -3,6 +3,7 @@ import logging
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -61,6 +62,7 @@ def _clean_quiz_answers(raw_answers) -> list[dict] | None:
     return answers
 
 
+@transaction.non_atomic_requests  # do not hold a DB transaction open while waiting for Gemini
 @require_POST
 @ratelimit(key='ip', rate='5/h', block=True)
 def quiz_submit_api(request):

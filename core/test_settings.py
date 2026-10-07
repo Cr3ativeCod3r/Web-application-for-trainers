@@ -6,6 +6,14 @@ import os
 # - provide a throwaway key if none is set.
 os.environ['DEBUG'] = 'False'
 os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key-not-for-production-use')
+if not (os.environ.get('JWT_PRIVATE_KEY') or os.environ.get('JWT_PRIVATE_KEY_FILE')):
+    # A throwaway key per test run; tests derive the public key from it.
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    os.environ['JWT_PRIVATE_KEY'] = ec.generate_private_key(ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
 
 from .settings import *  # noqa: E402,F401,F403
 
@@ -31,3 +39,8 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # The Django test client speaks plain HTTP; redirecting it to https:// would turn
 # every response into a 301. HTTPS enforcement is a deployment concern.
 SECURE_SSL_REDIRECT = False
+
+# Uploaded files from tests go to a throwaway directory, not the project's media/.
+import tempfile  # noqa: E402
+
+MEDIA_ROOT = tempfile.mkdtemp(prefix='coachly-test-media-')

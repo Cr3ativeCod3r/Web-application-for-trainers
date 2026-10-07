@@ -27,6 +27,34 @@ class TrainerStatus(models.TextChoices):
     BANNED = 'BANNED', 'Zbanowany'
     ADMIN = 'ADMIN', 'Administrator'
 
+
+class StatusTransition(models.TextChoices):
+    """
+    Named steps of the trainer lifecycle. They are named (not just "status A -> B")
+    because two different steps can end in the same status: approving an application
+    and lifting a ban both lead to APPROVED_TRAINER, but only from their own source.
+    """
+    APPLY = 'apply', 'Złożenie wniosku'
+    APPROVE = 'approve', 'Zatwierdzenie'
+    BAN = 'ban', 'Zawieszenie'
+    UNBAN = 'unban', 'Odwieszenie'
+
+
+STATUS_TRANSITIONS: dict[str, tuple[str, str]] = {
+    StatusTransition.APPLY: (TrainerStatus.REGISTERED, TrainerStatus.PENDING_APPLICATION),
+    StatusTransition.APPROVE: (TrainerStatus.PENDING_APPLICATION, TrainerStatus.APPROVED_TRAINER),
+    StatusTransition.BAN: (TrainerStatus.APPROVED_TRAINER, TrainerStatus.BANNED),
+    StatusTransition.UNBAN: (TrainerStatus.BANNED, TrainerStatus.APPROVED_TRAINER),
+}
+
+
+class InvalidStatusTransition(Exception):
+    def __init__(self, transition: str, current: str):
+        self.transition = transition
+        self.current = current
+        super().__init__(f"Cannot '{transition}' an account with status {current}")
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, verbose_name="Adres e-mail")
     status = models.CharField(
@@ -50,6 +78,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    def can_apply_transition(self, transition: str) -> bool:
+        source, _target = STATUS_TRANSITIONS[transition]
+        return self.status == source
+
+    def apply_transition(self, transition: str) -> None:
+        """Change the status in memory, enforcing the lifecycle. The caller saves."""
+        if not self.can_apply_transition(transition):
+            raise InvalidStatusTransition(transition, self.status)
+        _source, self.status = STATUS_TRANSITIONS[transition]
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='client_profile')

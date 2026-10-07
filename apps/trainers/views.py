@@ -9,7 +9,6 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import TrainerStatus
 
@@ -66,9 +65,6 @@ def public_profile_view(request, username):
         'profile': profile,
         'chat_api_url': settings.CHAT_API_URL,
     }
-    if request.user.is_authenticated:
-        context['jwt_token'] = str(RefreshToken.for_user(request.user).access_token)
-
     return render(request, 'trainers/public_profile.html', context)
 
 

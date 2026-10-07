@@ -1,13 +1,15 @@
 import pytest
 
-from apps.accounts.models import TrainerStatus
+from apps.accounts.models import InvalidStatusTransition, TrainerStatus
 from apps.accounts.tests.factories import UserFactory
 from apps.trainers.models import TrainerProfileUpdate
 from apps.trainers.services import (
     apply_for_trainer,
     approve_profile_update,
     approve_trainer,
+    ban_trainer,
     reject_profile_update,
+    unban_trainer,
 )
 from apps.trainers.tests.factories import TrainerProfileFactory, TrainerProfileUpdateFactory
 
@@ -78,3 +80,33 @@ class TestTrainersServices:
         profile.refresh_from_db()
         assert profile.full_name == "Original Name"
         assert not TrainerProfileUpdate.objects.filter(pk=update_req.pk).exists()
+
+
+@pytest.mark.django_db
+class TestTrainerStatusServices:
+    def test_cannot_approve_banned_trainer(self):
+        profile = TrainerProfileFactory(user=UserFactory(status=TrainerStatus.BANNED, is_active=False))
+        with pytest.raises(InvalidStatusTransition):
+            approve_trainer(profile)
+        profile.user.refresh_from_db()
+        assert profile.user.status == TrainerStatus.BANNED
+
+    def test_unban_requires_banned_account(self):
+        """Regression: unban used to promote any account (even a pending one) to trainer."""
+        profile = TrainerProfileFactory(user=UserFactory(status=TrainerStatus.PENDING_APPLICATION))
+        with pytest.raises(InvalidStatusTransition):
+            unban_trainer(profile)
+        profile.user.refresh_from_db()
+        assert profile.user.status == TrainerStatus.PENDING_APPLICATION
+
+    def test_ban_deactivates_account(self):
+        profile = TrainerProfileFactory(user=UserFactory(status=TrainerStatus.APPROVED_TRAINER))
+        ban_trainer(profile)
+        profile.user.refresh_from_db()
+        assert profile.user.status == TrainerStatus.BANNED
+        assert profile.user.is_active is False
+
+    def test_apply_twice_is_rejected(self):
+        user = UserFactory(status=TrainerStatus.PENDING_APPLICATION)
+        with pytest.raises(InvalidStatusTransition):
+            apply_for_trainer(user, TrainerProfileFactory.build(user=user))

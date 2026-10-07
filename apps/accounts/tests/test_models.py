@@ -1,7 +1,8 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.accounts.models import TrainerStatus
+from apps.accounts.models import InvalidStatusTransition, StatusTransition, TrainerStatus
+from apps.accounts.tests.factories import UserFactory
 
 User = get_user_model()
 
@@ -39,3 +40,31 @@ class TestCustomUserModel:
         assert admin_user.is_active is True
         assert admin_user.is_staff is True
         assert admin_user.is_superuser is True
+
+
+@pytest.mark.django_db
+class TestStatusTransitions:
+    @pytest.mark.parametrize('current,transition,expected', [
+        (TrainerStatus.REGISTERED, StatusTransition.APPLY, TrainerStatus.PENDING_APPLICATION),
+        (TrainerStatus.PENDING_APPLICATION, StatusTransition.APPROVE, TrainerStatus.APPROVED_TRAINER),
+        (TrainerStatus.APPROVED_TRAINER, StatusTransition.BAN, TrainerStatus.BANNED),
+        (TrainerStatus.BANNED, StatusTransition.UNBAN, TrainerStatus.APPROVED_TRAINER),
+    ])
+    def test_allowed_transitions(self, current, transition, expected):
+        user = UserFactory(status=current)
+        user.apply_transition(transition)
+        assert user.status == expected
+
+    @pytest.mark.parametrize('current,transition', [
+        (TrainerStatus.REGISTERED, StatusTransition.APPROVE),
+        (TrainerStatus.BANNED, StatusTransition.APPROVE),
+        (TrainerStatus.PENDING_APPLICATION, StatusTransition.UNBAN),
+        (TrainerStatus.PENDING_APPLICATION, StatusTransition.BAN),
+        (TrainerStatus.PENDING_APPLICATION, StatusTransition.APPLY),
+        (TrainerStatus.ADMIN, StatusTransition.BAN),
+    ])
+    def test_forbidden_transitions(self, current, transition):
+        user = UserFactory(status=current)
+        with pytest.raises(InvalidStatusTransition):
+            user.apply_transition(transition)
+        assert user.status == current

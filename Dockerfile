@@ -28,8 +28,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Static files are collected at build time and served by WhiteNoise.
-# collectstatic only needs *a* key to import settings - the real one comes from the runtime env.
-RUN SECRET_KEY=build-only-placeholder python manage.py collectstatic --noinput
+# collectstatic only needs *some* keys to import settings - the real ones come from the runtime env.
+RUN SECRET_KEY=build-only-placeholder JWT_PRIVATE_KEY=build-only-placeholder python manage.py collectstatic --noinput
 
 # Never run the application as root inside the container.
 RUN useradd --create-home --uid 1000 app && chown -R app:app /app
