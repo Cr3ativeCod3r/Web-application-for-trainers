@@ -1,6 +1,10 @@
 import os
 
-# Tests must not depend on a developer's .env; provide a throwaway key if none is set.
+# Tests must behave the same on every machine and in CI, regardless of a developer's
+# .env (load_dotenv never overrides variables that are already set):
+# - always run with production-like DEBUG=False (no debug toolbar, secure defaults),
+# - provide a throwaway key if none is set.
+os.environ['DEBUG'] = 'False'
 os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key-not-for-production-use')
 
 from .settings import *  # noqa: E402,F401,F403
@@ -23,3 +27,7 @@ CACHES = {
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# The Django test client speaks plain HTTP; redirecting it to https:// would turn
+# every response into a 301. HTTPS enforcement is a deployment concern.
+SECURE_SSL_REDIRECT = False
