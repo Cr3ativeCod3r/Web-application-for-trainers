@@ -1,50 +1,68 @@
 import os
 
+from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.db import transaction
 
-from apps.accounts.models import TrainerStatus
+from apps.accounts.models import StatusTransition
 
 from .models import TrainerProfile, TrainerProfileContent, TrainerProfileUpdate
 
+User = get_user_model()
+
+
+def _locked_user(user):
+    """
+    Re-read the user with a row lock. Two admins clicking "approve" and "ban" at the
+    same time must not both pass the transition check against the same stale status.
+    """
+    return User.objects.select_for_update().get(pk=user.pk)
+
 
 def apply_for_trainer(user, profile: TrainerProfile) -> TrainerProfile:
-    """
-    Service to handle the logic when a user applies to become a trainer.
-    Updates the user's status and saves the profile.
-    """
+    """Save the trainer application and move the user to PENDING_APPLICATION."""
     with transaction.atomic():
-        profile.user = user
-        profile.save()
+        locked = _locked_user(user)
+        locked.apply_transition(StatusTransition.APPLY)
+        locked.save(update_fields=['status'])
 
-        user.status = TrainerStatus.PENDING_APPLICATION
-        user.save()
+        profile.user = locked
+        profile.save()
+    user.status = locked.status
     return profile
+
 
 def approve_trainer(profile: TrainerProfile) -> TrainerProfile:
-    """
-    Service to approve a trainer application.
-    """
+    """Approve a pending trainer application."""
     with transaction.atomic():
-        profile.user.status = TrainerStatus.APPROVED_TRAINER
-        profile.user.save()
+        user = _locked_user(profile.user)
+        user.apply_transition(StatusTransition.APPROVE)
+        user.save(update_fields=['status'])
+    profile.user = user
     return profile
+
 
 def ban_trainer(profile: TrainerProfile) -> TrainerProfile:
     """Suspend a trainer: deactivate the account so they can no longer log in."""
-    user = profile.user
-    user.is_active = False
-    user.status = TrainerStatus.BANNED
-    user.save(update_fields=['is_active', 'status'])
+    with transaction.atomic():
+        user = _locked_user(profile.user)
+        user.apply_transition(StatusTransition.BAN)
+        user.is_active = False
+        user.save(update_fields=['is_active', 'status'])
+    profile.user = user
     return profile
+
 
 def unban_trainer(profile: TrainerProfile) -> TrainerProfile:
     """Restore a suspended trainer account."""
-    user = profile.user
-    user.is_active = True
-    user.status = TrainerStatus.APPROVED_TRAINER
-    user.save(update_fields=['is_active', 'status'])
+    with transaction.atomic():
+        user = _locked_user(profile.user)
+        user.apply_transition(StatusTransition.UNBAN)
+        user.is_active = True
+        user.save(update_fields=['is_active', 'status'])
+    profile.user = user
     return profile
+
 
 def apply_profile_content(source: TrainerProfileContent, target: TrainerProfileContent) -> None:
     """Copy every editable plain field from one profile-like object to another (in memory)."""

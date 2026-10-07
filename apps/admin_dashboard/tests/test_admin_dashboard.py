@@ -148,3 +148,13 @@ class TestAdminDashboardStateChangingActions:
         user.refresh_from_db()
         assert user.status == TrainerStatus.APPROVED_TRAINER
         assert user.is_active is True
+
+    def test_unban_of_pending_account_is_refused(self, admin_client):
+        user = UserFactory(status=TrainerStatus.PENDING_APPLICATION)
+        profile = TrainerProfileFactory(user=user)
+
+        response = admin_client.post(reverse('admin_dashboard:unban_trainer', kwargs={'profile_id': profile.id}))
+
+        assert response.status_code == 302
+        user.refresh_from_db()
+        assert user.status == TrainerStatus.PENDING_APPLICATION
