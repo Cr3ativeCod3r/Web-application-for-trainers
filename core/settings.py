@@ -1,5 +1,9 @@
+from datetime import timedelta
 from pathlib import Path
 import os
+import socket
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -8,16 +12,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(=+dp(si1)ucdw(o@k9$@9@(hkvk-*52!jpo@4nydxyz4rgg@b')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = str(os.environ.get('DEBUG', 'True')).lower() in ('true', '1', 't')
+
+def env_bool(name: str, default: bool = False) -> bool:
+    return str(os.environ.get(name, default)).lower() in ('true', '1', 't', 'yes')
+
+
+def env_list(name: str, default: str = '') -> list[str]:
+    return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
+
+
+# The secret key signs sessions, password-reset tokens and the chat JWTs.
+# There is deliberately no fallback: a key committed to the repository is public.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY environment variable is not set.')
+
+# Secure by default: debug mode has to be enabled explicitly (e.g. in .env for local dev).
+DEBUG = env_bool('DEBUG', False)
 
 API_GEMINI = os.environ.get('API_GEMINI', '')
 
-
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
 
 DOMAIN = os.environ.get('DOMAIN', 'localhost:8000')
 
@@ -45,7 +62,6 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'django_cleanup.apps.CleanupConfig',
-    'debug_toolbar',
     'storages',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -53,7 +69,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -98,10 +113,13 @@ DATABASES = {
     }
 }
 
-# Django Debug Toolbar configuration
-import socket
-hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
-INTERNAL_IPS = [ip[: ip.rfind(".")] + ".1" for ip in ips] + ["127.0.0.1", "10.0.2.2"]
+# Django Debug Toolbar is a development tool only - it exposes SQL, settings and
+# request data, so it is never installed when DEBUG is off.
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS = [ip[: ip.rfind(".")] + ".1" for ip in ips] + ["127.0.0.1", "10.0.2.2"]
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
@@ -153,7 +171,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'banaszekk123@gmail.com')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
@@ -199,8 +217,6 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-LOGIN_REDIRECT_URL = 'trainers:home_search'
-LOGOUT_REDIRECT_URL = 'trainers:home_search'
 
 SOCIALACCOUNT_ADAPTER = 'apps.accounts.adapters.CustomSocialAccountAdapter'
 
@@ -246,7 +262,6 @@ REST_FRAMEWORK = {
     )
 }
 
-from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -258,3 +273,13 @@ SIMPLE_JWT = {
 
 CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://localhost:8001')
 CHAT_WS_URL = os.environ.get('CHAT_WS_URL', 'ws://localhost:8001')
+
+# Production hardening (only when DEBUG is off, so local HTTP development keeps working)
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', 60 * 60 * 24 * 30))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True

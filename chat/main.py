@@ -29,7 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(=+dp(si1)ucdw(o@k9$@9@(hkvk-*52!jpo@4nydxyz4rgg@b')
+# Shared with Django: Django signs the JWT, this service verifies it. No fallback on purpose.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError('SECRET_KEY environment variable is not set.')
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)

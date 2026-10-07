@@ -1,4 +1,9 @@
-from .settings import *  # noqa: F401,F403
+import os
+
+# Tests must not depend on a developer's .env; provide a throwaway key if none is set.
+os.environ.setdefault('SECRET_KEY', 'test-only-insecure-secret-key')
+
+from .settings import *  # noqa: E402,F401,F403
 
 # Tests run against PostgreSQL (configured via the same DB_* env vars as the app).
 # SQLite cannot be used here: the models rely on Postgres-only features such as
