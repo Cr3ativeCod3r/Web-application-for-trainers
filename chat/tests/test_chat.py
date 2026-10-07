@@ -9,6 +9,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from starlette.websockets import WebSocketDisconnect
 
+import main
 from tests.conftest import (
     APPROVED_TRAINER_ID,
     BANNED_CLIENT_ID,
@@ -169,3 +170,22 @@ class TestDisabledAccounts:
 
     def test_cannot_open_room_with_banned_trainer(self, client):
         assert create_room(client, trainer_id=BANNED_CLIENT_ID).status_code == 404
+
+
+class TestRateLimit:
+    def test_limit_is_shared_between_connections_of_one_user(self, client, monkeypatch):
+        monkeypatch.setattr(main, 'MESSAGE_RATE_LIMIT', 3)
+        room_id = create_room(client).json()['id']
+
+        with client.websocket_connect(ws_url(client, room_id, CLIENT_ID)) as tab_1, \
+                client.websocket_connect(ws_url(client, room_id, CLIENT_ID)) as tab_2:
+            for sender in (tab_1, tab_2, tab_1):
+                sender.send_text('hi')
+                # Every message is broadcast to all sockets in the room, the sender's included.
+                tab_1.receive_json()
+                tab_2.receive_json()
+            tab_2.send_text('one too many')
+            assert 'error' in tab_2.receive_json()
+
+        history = client.get(f'/rooms/{room_id}/messages', headers=auth(CLIENT_ID)).json()
+        assert len(history) == 3

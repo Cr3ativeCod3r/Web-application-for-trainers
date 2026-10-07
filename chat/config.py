@@ -41,7 +41,8 @@ CORS_ORIGINS = [
 SQL_ECHO = os.environ.get('SQL_ECHO', 'False').lower() in ('true', '1')
 
 MAX_MESSAGE_LENGTH = 2000
-# Minimum delay between two messages from one connection (server-side flood protection).
-MIN_SECONDS_BETWEEN_MESSAGES = 0.5
+# Flood protection per user, shared by all their tabs and all service instances.
+MESSAGE_RATE_LIMIT = 10
+MESSAGE_RATE_WINDOW_SECONDS = 5
 DEFAULT_HISTORY_LIMIT = 100
 MAX_HISTORY_LIMIT = 500

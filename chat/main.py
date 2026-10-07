@@ -20,7 +20,8 @@ from config import (
     DEFAULT_HISTORY_LIMIT,
     MAX_HISTORY_LIMIT,
     MAX_MESSAGE_LENGTH,
-    MIN_SECONDS_BETWEEN_MESSAGES,
+    MESSAGE_RATE_LIMIT,
+    MESSAGE_RATE_WINDOW_SECONDS,
     REDIS_CHANNEL,
     REDIS_URL,
     WS_TICKET_TTL_SECONDS,
@@ -226,6 +227,20 @@ async def create_ws_ticket(current_user_id: int = Depends(get_current_participan
     return WsTicketResponse(ticket=ticket, expires_in=WS_TICKET_TTL_SECONDS)
 
 
+async def allow_message(user_id: int) -> bool:
+    """
+    Fixed-window counter in Redis. Counting per connection would let a user
+    multiply the limit by opening more tabs, or by hitting several instances.
+    """
+    window = int(time.time() // MESSAGE_RATE_WINDOW_SECONDS)
+    key = f"chat:rate:{user_id}:{window}"
+    pipe = redis_client.pipeline()
+    pipe.incr(key)
+    pipe.expire(key, MESSAGE_RATE_WINDOW_SECONDS * 2)
+    count, _ = await pipe.execute()
+    return count <= MESSAGE_RATE_LIMIT
+
+
 async def redeem_ws_ticket(ticket: str) -> int | None:
     # GETDEL is atomic: two connections racing with the same ticket cannot both win.
     user_id = await redis_client.getdel(ws_ticket_key(ticket))
@@ -249,7 +264,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, ticket: str = Q
         return
 
     await manager.connect(websocket, room_id, user_id)
-    last_message_at = 0.0
     try:
         while True:
             content = (await websocket.receive_text()).strip()
@@ -258,11 +272,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: int, ticket: str = Q
             if len(content) > MAX_MESSAGE_LENGTH:
                 await websocket.send_json({"error": f"Message longer than {MAX_MESSAGE_LENGTH} characters"})
                 continue
-            now = time.monotonic()
-            if now - last_message_at < MIN_SECONDS_BETWEEN_MESSAGES:
+            if not await allow_message(user_id):
                 await websocket.send_json({"error": "Too many messages, slow down"})
                 continue
-            last_message_at = now
 
             async with database.SessionLocal() as db:
                 message = Message(room_id=room_id, sender_id=user_id, content=content)
