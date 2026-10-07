@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import TrainerProfile
+from .models import TrainerProfile, TrainerProfileContent
 from .forms import TrainerApplicationForm
 from apps.accounts.models import TrainerStatus
 
@@ -119,25 +119,10 @@ def trainer_account_view(request):
         if pending_update:
             form = TrainerProfileUpdateForm(instance=pending_update)
         else:
-            # We need to create an instance-like dictionary or just use initial
-            initial_data = {
-                'full_name': profile.full_name,
-                'sports': profile.sports.all(),
-                'location': profile.location,
-                'headline': profile.headline,
-                'description': profile.description,
-                'classes_description': profile.classes_description,
-                'hourly_rate': profile.hourly_rate,
-                'contact_email': profile.contact_email,
-                'contact_phone': profile.contact_phone,
-                'profile_picture': profile.profile_picture,
-                'instagram': profile.instagram,
-                'facebook': profile.facebook,
-                'tiktok': profile.tiktok,
-                'gender': profile.gender,
-                'training_type': profile.training_type,
-                'tags': ', '.join(profile.tags) if profile.tags else '',
-            }
+            # No pending update yet: start the form from the live profile values
+            initial_data = {name: getattr(profile, name) for name in TrainerProfileContent.content_field_names()}
+            initial_data['sports'] = profile.sports.all()
+            initial_data['profile_picture'] = profile.profile_picture
             form = TrainerProfileUpdateForm(initial=initial_data)
 
     return render(request, 'trainers/account.html', {'form': form, 'pending_update': pending_update, 'profile': profile})

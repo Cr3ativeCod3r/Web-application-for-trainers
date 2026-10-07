@@ -1,6 +1,6 @@
 from typing import Set
 from django.db.models import QuerySet, Q
-from .models import TrainerProfile
+from .models import TrainerProfile, TrainingType
 from apps.accounts.models import TrainerStatus
 
 def get_approved_trainers() -> QuerySet[TrainerProfile]:
@@ -19,8 +19,8 @@ def search_trainers(sport: str = '', location: str = '', training_type: str = ''
         trainers = trainers.filter(sports__name__icontains=sport).distinct()
     if location:
         trainers = trainers.filter(location__icontains=location)
-    if training_type in ['ONLINE', 'STATIONARY']:
-        trainers = trainers.filter(Q(training_type=training_type) | Q(training_type='BOTH'))
+    if training_type in (TrainingType.ONLINE, TrainingType.STATIONARY):
+        trainers = trainers.filter(Q(training_type=training_type) | Q(training_type=TrainingType.BOTH))
         
     return trainers.order_by('-created_at')
 
