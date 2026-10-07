@@ -29,7 +29,8 @@ from django.contrib.auth import login
 
 from django.http import JsonResponse
 from .services import AuthService
-from .models import ClientProfile
+from .models import ClientProfile, TrainerStatus
+from .selectors import get_user_display_info, users_share_chat_room
 
 @method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
 class ClientRegisterView(CreateView):
@@ -123,24 +124,9 @@ class ChatView(LoginRequiredMixin, TemplateView):
         refresh = RefreshToken.for_user(self.request.user)
         context['jwt_token'] = str(refresh.access_token)
 
-        user = self.request.user
-        # Try to get display name from trainer or client profile
-        display_name = user.email
-        avatar_url = ''
-        try:
-            profile = user.trainer_profile
-            display_name = profile.full_name or user.email
-            if profile.profile_picture:
-                avatar_url = profile.profile_picture.url
-        except Exception:
-            try:
-                cp = user.client_profile
-                display_name = f"{cp.first_name} {cp.last_name}".strip() or user.email
-            except Exception:
-                pass
-
-        context['current_user_name'] = display_name
-        context['current_user_avatar'] = avatar_url
+        info = get_user_display_info(self.request.user)
+        context['current_user_name'] = info['name']
+        context['current_user_avatar'] = info['avatar_url']
         
         from django.conf import settings
         context['chat_api_url'] = getattr(settings, 'CHAT_API_URL', 'http://localhost:8001')
@@ -150,33 +136,19 @@ class ChatView(LoginRequiredMixin, TemplateView):
 
 @login_required
 def user_info_api(request, user_id):
-    """Returns basic info (name + avatar) for a given user ID — used by the chat JS."""
-    try:
-        target = User.objects.get(pk=user_id)
-    except User.DoesNotExist:
+    """
+    Returns display info (name + avatar) for a chat partner - used by the chat JS.
+
+    Approved trainers are public anyway; any other user is only visible to people
+    they actually have a conversation with, so ids cannot be enumerated to harvest
+    names of all clients.
+    """
+    target = User.objects.select_related('trainer_profile', 'client_profile').filter(pk=user_id).first()
+    if target is None:
         return JsonResponse({'error': 'not found'}, status=404)
 
-    name = target.email
-    avatar_url = ''
-    try:
-        profile = target.trainer_profile
-        name = profile.full_name or target.email
-        if profile.profile_picture:
-            avatar_url = profile.profile_picture.url
-    except Exception:
-        try:
-            cp = target.client_profile
-            name = f"{cp.first_name} {cp.last_name}".strip() or target.email
-        except Exception:
-            pass
+    is_public_trainer = target.status == TrainerStatus.APPROVED_TRAINER
+    if not (is_public_trainer or target.pk == request.user.pk or users_share_chat_room(request.user.pk, target.pk)):
+        return JsonResponse({'error': 'not found'}, status=404)
 
-    trainer_username = None
-    try:
-        from apps.accounts.models import TrainerStatus
-        if target.status == TrainerStatus.APPROVED_TRAINER:
-            trainer_username = target.trainer_profile.username
-    except Exception:
-        pass
-
-    return JsonResponse({'id': user_id, 'name': name, 'avatar_url': avatar_url, 'trainer_username': trainer_username})
-
+    return JsonResponse(get_user_display_info(target))
