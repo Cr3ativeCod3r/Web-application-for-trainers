@@ -1,13 +1,10 @@
 import json
 import logging
 
-from django.conf import settings
 from django.contrib import messages
-from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
@@ -15,34 +12,29 @@ from django_ratelimit.decorators import ratelimit
 from apps.accounts.models import TrainerStatus
 from apps.trainers.models import Sport, TrainerPost, TrainerProfile
 
+from .forms import ContactForm
 from .services import AIServiceError, get_ai_sport_recommendation
+from .tasks import send_contact_email_task
 
 logger = logging.getLogger(__name__)
 
 def about_view(request):
     return render(request, 'pages/about.html')
 
+@ratelimit(key='ip', rate='3/h', method='POST', block=True)
 def contact_view(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        message = request.POST.get('message')
-
-        context = {'name': name, 'email': email, 'message': message}
-        full_message = render_to_string('pages/emails/contact_form.txt', context)
-
-        send_mail(
-            subject=f"Nowa wiadomość z formularza kontaktowego Coachly od {name}",
-            message=full_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.DEFAULT_FROM_EMAIL],
-            fail_silently=False,
-        )
-
-        messages.success(request, "Twoja wiadomość została wysłana. Dziękujemy za kontakt!")
-        return redirect('pages:contact')
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            # Sent by Celery: a slow or failing SMTP server must not block or crash the request.
+            send_contact_email_task.delay(**form.cleaned_data)
+            messages.success(request, "Twoja wiadomość została wysłana. Dziękujemy za kontakt!")
+            return redirect('pages:contact')
+        for errors in form.errors.values():
+            messages.error(request, errors[0])
 
     return render(request, 'pages/contact.html')
+
 
 def privacy_view(request):
     return render(request, 'pages/privacy.html')
