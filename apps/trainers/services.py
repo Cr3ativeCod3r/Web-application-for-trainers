@@ -25,6 +25,22 @@ def approve_trainer(profile: TrainerProfile) -> TrainerProfile:
         profile.user.save()
     return profile
 
+def ban_trainer(profile: TrainerProfile) -> TrainerProfile:
+    """Suspend a trainer: deactivate the account so they can no longer log in."""
+    user = profile.user
+    user.is_active = False
+    user.status = TrainerStatus.BANNED
+    user.save(update_fields=['is_active', 'status'])
+    return profile
+
+def unban_trainer(profile: TrainerProfile) -> TrainerProfile:
+    """Restore a suspended trainer account."""
+    user = profile.user
+    user.is_active = True
+    user.status = TrainerStatus.APPROVED_TRAINER
+    user.save(update_fields=['is_active', 'status'])
+    return profile
+
 def approve_profile_update(update_obj: TrainerProfileUpdate) -> TrainerProfile:
     """
     Service to approve a pending profile update. 
