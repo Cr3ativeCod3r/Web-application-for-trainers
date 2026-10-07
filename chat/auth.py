@@ -23,11 +23,11 @@ def verify_token(token: str) -> int:
         if user_id is None:
             raise InvalidTokenError("Missing user_id")
         return int(user_id)
-    except (InvalidTokenError, ValueError):
+    except (InvalidTokenError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
-        )
+        ) from exc
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> int:

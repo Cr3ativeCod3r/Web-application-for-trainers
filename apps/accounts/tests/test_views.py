@@ -1,11 +1,12 @@
-import pytest
 from unittest.mock import patch
-from django.urls import reverse
+
+import pytest
 from django.contrib.auth import get_user_model
-from django.contrib.messages import get_messages
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.messages import get_messages
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from apps.accounts.tests.factories import UserFactory
 

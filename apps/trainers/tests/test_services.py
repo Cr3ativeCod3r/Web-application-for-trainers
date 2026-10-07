@@ -1,14 +1,16 @@
 import pytest
-from apps.accounts.tests.factories import UserFactory
+
 from apps.accounts.models import TrainerStatus
-from apps.trainers.tests.factories import TrainerProfileFactory, TrainerProfileUpdateFactory
-from apps.trainers.models import TrainerProfile, TrainerProfileUpdate
+from apps.accounts.tests.factories import UserFactory
+from apps.trainers.models import TrainerProfileUpdate
 from apps.trainers.services import (
     apply_for_trainer,
-    approve_trainer,
     approve_profile_update,
+    approve_trainer,
     reject_profile_update,
 )
+from apps.trainers.tests.factories import TrainerProfileFactory, TrainerProfileUpdateFactory
+
 
 @pytest.mark.django_db
 class TestTrainersServices:

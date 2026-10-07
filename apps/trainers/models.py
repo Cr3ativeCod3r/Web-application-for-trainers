@@ -1,22 +1,22 @@
-from django.db import models
+from autoslug import AutoSlugField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-
-from autoslug import AutoSlugField
+from django.db import models
 
 from core.html import sanitize_html
+
 
 class Sport(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Nazwa sportu")
     slug = AutoSlugField(populate_from='name', unique=True, max_length=100)
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         verbose_name = "Dyscyplina sportowa"
         verbose_name_plural = "Dyscypliny sportowe"
         ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 class Gender(models.TextChoices):
     MALE = 'M', 'Chłopak'
@@ -106,11 +106,11 @@ class TrainerPost(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+    def __str__(self):
+        return f"{self.title} - {self.trainer.full_name}"
+
     def save(self, *args, **kwargs):
         # Content is rendered with |safe, so it is sanitized on every write path
         # (form, Django admin, shell, seed commands) - not only in the form.
         self.content = sanitize_html(self.content)
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.title} - {self.trainer.full_name}"

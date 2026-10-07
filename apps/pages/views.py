@@ -1,17 +1,19 @@
-from django.shortcuts import render, redirect
-from django.core.mail import send_mail
-from django.conf import settings
-from django.contrib import messages
-from django.template.loader import render_to_string
 import json
 import logging
-from django.http import JsonResponse
-from django.urls import reverse
-from django.core.paginator import Paginator
 
-from apps.trainers.models import TrainerProfile, TrainerPost, Sport
+from django.conf import settings
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.urls import reverse
+
 from apps.accounts.models import TrainerStatus
-from .services import get_ai_sport_recommendation, AIServiceError
+from apps.trainers.models import Sport, TrainerPost, TrainerProfile
+
+from .services import AIServiceError, get_ai_sport_recommendation
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +25,10 @@ def contact_view(request):
         name = request.POST.get('name')
         email = request.POST.get('email')
         message = request.POST.get('message')
-        
+
         context = {'name': name, 'email': email, 'message': message}
         full_message = render_to_string('pages/emails/contact_form.txt', context)
-        
+
         send_mail(
             subject=f"Nowa wiadomość z formularza kontaktowego Coachly od {name}",
             message=full_message,
@@ -34,10 +36,10 @@ def contact_view(request):
             recipient_list=[settings.DEFAULT_FROM_EMAIL],
             fail_silently=False,
         )
-        
+
         messages.success(request, "Twoja wiadomość została wysłana. Dziękujemy za kontakt!")
         return redirect('pages:contact')
-        
+
     return render(request, 'pages/contact.html')
 
 def privacy_view(request):
@@ -51,21 +53,21 @@ def quiz_submit_api(request):
         try:
             data = json.loads(request.body)
             answers = data.get('answers', [])
-            
+
             if not answers:
                 return JsonResponse({'error': 'Brak odpowiedzi'}, status=400)
-                
+
             approved_trainers = TrainerProfile.objects.filter(user__status=TrainerStatus.APPROVED_TRAINER)
             available_sports = list(Sport.objects.filter(trainers__in=approved_trainers).values_list('name', flat=True).distinct())
-            
+
             try:
                 ai_result = get_ai_sport_recommendation(answers, available_sports)
             except AIServiceError as e:
                 logger.error("AI Service Error: %s", str(e), exc_info=True)
                 return JsonResponse({'error': str(e)}, status=500)
-            
+
             suggested_sport = ai_result.get('suggested_sport', '')
-            
+
             # Find recommended trainers
             recommended_trainers = []
             if suggested_sport:
@@ -78,32 +80,32 @@ def quiz_submit_api(request):
                         'location': t.location,
                         'type': t.get_training_type_display()
                     })
-            
+
             return JsonResponse({
                 'recommendation': ai_result.get('recommendation', ''),
                 'suggested_sport': suggested_sport,
                 'trainers': recommended_trainers
             })
-            
+
         except Exception as e:
             logger.error("Unexpected error in quiz_submit_api: %s", str(e), exc_info=True)
             return JsonResponse({'error': 'Wystąpił nieoczekiwany błąd serwera.'}, status=500)
-            
+
     return JsonResponse({'error': 'Metoda nieobsługiwana'}, status=405)
 
 def knowledge_base_view(request):
     query = request.GET.get('q', '').strip()
-    
+
     # Get all posts from approved trainers
     posts = TrainerPost.objects.filter(trainer__user__status=TrainerStatus.APPROVED_TRAINER).order_by('-created_at')
-    
+
     if query:
         posts = posts.filter(title__icontains=query)
-        
+
     paginator = Paginator(posts, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     return render(request, 'pages/knowledge_base.html', {
         'posts': page_obj,
         'query': query

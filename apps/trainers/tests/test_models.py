@@ -1,6 +1,7 @@
 import pytest
-from apps.trainers.tests.factories import TrainerProfileFactory, TrainerPostFactory
-from apps.trainers.models import TrainerPost
+
+from apps.trainers.tests.factories import TrainerPostFactory, TrainerProfileFactory
+
 
 @pytest.mark.django_db
 class TestTrainerProfileModel:

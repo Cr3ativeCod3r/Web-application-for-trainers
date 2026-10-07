@@ -1,12 +1,14 @@
 import pytest
-from apps.accounts.tests.factories import UserFactory
+
 from apps.accounts.models import TrainerStatus
-from apps.trainers.tests.factories import TrainerProfileFactory
+from apps.accounts.tests.factories import UserFactory
 from apps.trainers.selectors import (
     get_approved_trainers,
-    search_trainers,
     get_autocomplete_suggestions,
+    search_trainers,
 )
+from apps.trainers.tests.factories import TrainerProfileFactory
+
 
 @pytest.mark.django_db
 class TestTrainersSelectors:

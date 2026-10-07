@@ -1,13 +1,14 @@
 import pytest
 from django.urls import reverse
-from apps.accounts.tests.factories import UserFactory
+
 from apps.accounts.models import TrainerStatus
+from apps.accounts.tests.factories import UserFactory
+from apps.admin_dashboard.selectors import get_admin_dashboard_data
 from apps.trainers.tests.factories import (
+    TrainerPostFactory,
     TrainerProfileFactory,
     TrainerProfileUpdateFactory,
-    TrainerPostFactory,
 )
-from apps.admin_dashboard.selectors import get_admin_dashboard_data
 
 
 @pytest.mark.django_db

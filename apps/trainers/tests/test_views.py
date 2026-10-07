@@ -1,9 +1,10 @@
 import pytest
 from django.urls import reverse
-from apps.accounts.tests.factories import UserFactory
+
 from apps.accounts.models import TrainerStatus
-from apps.trainers.tests.factories import TrainerProfileFactory, TrainerPostFactory
-from apps.trainers.models import TrainerProfile
+from apps.accounts.tests.factories import UserFactory
+from apps.trainers.tests.factories import TrainerProfileFactory
+
 
 @pytest.mark.django_db
 class TestTrainersViews:

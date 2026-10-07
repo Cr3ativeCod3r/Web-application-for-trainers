@@ -1,9 +1,12 @@
 import os
-from django.db import transaction
+
 from django.core.files.base import ContentFile
+from django.db import transaction
+
+from apps.accounts.models import TrainerStatus
 
 from .models import TrainerProfile, TrainerProfileContent, TrainerProfileUpdate
-from apps.accounts.models import TrainerStatus
+
 
 def apply_for_trainer(user, profile: TrainerProfile) -> TrainerProfile:
     """
@@ -13,7 +16,7 @@ def apply_for_trainer(user, profile: TrainerProfile) -> TrainerProfile:
     with transaction.atomic():
         profile.user = user
         profile.save()
-        
+
         user.status = TrainerStatus.PENDING_APPLICATION
         user.save()
     return profile

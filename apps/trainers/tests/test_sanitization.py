@@ -1,7 +1,7 @@
 import pytest
 
-from core.html import sanitize_html
 from apps.trainers.tests.factories import TrainerPostFactory
+from core.html import sanitize_html
 
 
 class TestSanitizeHtml:

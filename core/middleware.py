@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django_ratelimit.exceptions import Ratelimited
 
+
 class RatelimitMiddleware:
     """
     Middleware that catches Ratelimited exceptions raised by django-ratelimit

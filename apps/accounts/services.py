@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 
 from .models import ClientProfile
-from .tasks import send_activation_email_task, send_activation_email_client_task
+from .tasks import send_activation_email_client_task, send_activation_email_task
 
 User = get_user_model()
 
@@ -55,5 +55,5 @@ class AuthService:
             user.is_active = True
             user.save(update_fields=['is_active'])
             return True, user
-        
+
         return False, None

@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 from django.contrib.auth import get_user_model
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from apps.accounts.services import AuthService
 from apps.accounts.tasks import send_activation_email_task
@@ -59,7 +60,7 @@ class TestAuthService:
 
         assert success is True
         assert activated_user.pk == user.pk
-        
+
         # Refresh from DB
         user.refresh_from_db()
         assert user.is_active is True
@@ -74,7 +75,7 @@ class TestAuthService:
 
         assert success is False
         assert activated_user is None
-        
+
         user.refresh_from_db()
         assert user.is_active is False
 
