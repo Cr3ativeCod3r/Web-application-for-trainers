@@ -48,6 +48,8 @@ A marketplace for sports trainers: clients search for trainers by sport, locatio
 | `celery_worker` | Sends e-mails outside the request cycle |
 | `chat` | FastAPI service handling WebSockets and chat history |
 
+<img width="6330" height="5054" alt="Architecture diagram" src="https://github.com/user-attachments/assets/ac177999-e970-4a07-9fb6-cf1cd40630a9" />
+
 ### Code layout
 
 ```text
