@@ -289,10 +289,7 @@
 
   let currentRoomId = null;
   let socket = null;
-  const userCache = {}; // id -> {name, avatar_url}
-
-  // Pre-populate cache with current user
-  userCache[currentUserId] = { name: currentUserName, avatar_url: currentUserAvatar };
+  const currentUser = { name: currentUserName, avatar_url: currentUserAvatar };
 
   /* ── mobile sidebar ── */
   function toggleSidebar() {
@@ -342,15 +339,6 @@
     return wrap;
   }
 
-  async function getUser(id) {
-    if (userCache[id]) return userCache[id];
-    try {
-      const res = await fetch(`/api/user-info/${id}/`);
-      if (res.ok) { userCache[id] = await res.json(); return userCache[id]; }
-    } catch(e) {}
-    return { name: `Użytkownik #${id}`, avatar_url: '' };
-  }
-
   /* ── rooms ── */
   async function fetchRooms() {
     try {
@@ -366,8 +354,8 @@
       count.textContent = rooms.length === 0 ? 'Brak konwersacji' : `${rooms.length} konwersacja${rooms.length === 1 ? '' : rooms.length < 5 ? 'e' : 'i'}`;
 
       for (const room of rooms) {
-        const otherId = room.client_id === currentUserId ? room.trainer_id : room.client_id;
-        const user = await getUser(otherId);
+        // The chat service returns the partner's public data with the room.
+        const user = room.partner;
         const lastMsg = room.last_message;
 
         const el = document.createElement('div');
@@ -442,7 +430,7 @@
         msgsList.innerHTML = '';
         for (const msg of messages) {
           const isSent = msg.sender_id === currentUserId;
-          const sender = isSent ? userCache[currentUserId] : otherUser;
+          const sender = isSent ? currentUser : otherUser;
           appendMessage(msg.content, isSent, sender, msg.created_at);
         }
         scrollToBottom();
@@ -539,7 +527,7 @@
     const text = input.value.trim();
     if (text && socket && socket.readyState === WebSocket.OPEN) {
       socket.send(text);
-      appendMessage(text, true, userCache[currentUserId], new Date().toISOString());
+      appendMessage(text, true, currentUser, new Date().toISOString());
       input.value = '';
       scrollToBottom();
       lastMessageTime = now;

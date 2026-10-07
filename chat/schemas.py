@@ -17,6 +17,14 @@ class RoomCreate(BaseModel):
     trainer_id: int
 
 
+class ParticipantResponse(BaseModel):
+    """Public display data of the other person in a conversation."""
+    id: int
+    name: str
+    avatar_url: str = ""
+    trainer_username: str | None = None
+
+
 class RoomResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -25,3 +33,4 @@ class RoomResponse(BaseModel):
     trainer_id: int
     created_at: datetime
     last_message: MessageResponse | None = None
+    partner: ParticipantResponse | None = None

@@ -26,7 +26,7 @@ from config import (
 from connection_manager import ConnectionManager
 from database import get_db
 from models import ChatRoom, ChatUser, Message
-from schemas import MessageResponse, RoomCreate, RoomResponse
+from schemas import MessageResponse, ParticipantResponse, RoomCreate, RoomResponse
 from user_events import run_consumer
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,20 @@ async def get_chat_user(db: AsyncSession, user_id: int) -> ChatUser | None:
     return await db.get(ChatUser, user_id)
 
 
+def to_participant(user_id: int, user: ChatUser | None) -> ParticipantResponse:
+    if user is None:
+        # Not synchronised yet (should only happen for a moment after sign-up).
+        return ParticipantResponse(id=user_id, name=f"Użytkownik #{user_id}")
+    if user.is_deleted:
+        return ParticipantResponse(id=user_id, name="Usunięte konto")
+    return ParticipantResponse(
+        id=user_id,
+        name=user.display_name or f"Użytkownik #{user_id}",
+        avatar_url=user.avatar_url,
+        trainer_username=user.trainer_username if user.accepts_new_conversations else None,
+    )
+
+
 async def get_current_participant(
     db: AsyncSession = Depends(get_db), user_id: int = Depends(get_current_user)
 ) -> int:
@@ -157,16 +171,22 @@ async def list_rooms(db: AsyncSession = Depends(get_db), current_user_id: int = 
     )
     last_messages = {msg.room_id: msg for msg in (await db.execute(last_messages_stmt)).scalars()}
 
-    return [
-        RoomResponse(
+    partner_ids = {room.trainer_id if room.client_id == current_user_id else room.client_id for room in rooms}
+    partners_stmt = select(ChatUser).where(ChatUser.user_id.in_(partner_ids))
+    partners = {user.user_id: user for user in (await db.execute(partners_stmt)).scalars()}
+
+    response = []
+    for room in rooms:
+        partner_id = room.trainer_id if room.client_id == current_user_id else room.client_id
+        response.append(RoomResponse(
             id=room.id,
             client_id=room.client_id,
             trainer_id=room.trainer_id,
             created_at=room.created_at,
             last_message=last_messages.get(room.id),
-        )
-        for room in rooms
-    ]
+            partner=to_participant(partner_id, partners.get(partner_id)),
+        ))
+    return response
 
 
 @app.get("/rooms/{room_id}/messages", response_model=list[MessageResponse])

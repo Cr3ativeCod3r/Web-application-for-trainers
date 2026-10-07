@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.http import JsonResponse
@@ -14,8 +13,7 @@ from django_ratelimit.decorators import ratelimit
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .forms import ClientRegistrationForm, CustomAuthenticationForm, TrainerRegistrationForm
-from .models import TrainerStatus
-from .selectors import get_user_display_info, users_share_chat_room
+from .selectors import get_user_display_info
 from .services import AuthService
 
 User = get_user_model()
@@ -162,23 +160,3 @@ class ChatView(LoginRequiredMixin, TemplateView):
             'chat_ws_url': settings.CHAT_WS_URL,
         })
         return context
-
-
-@login_required
-def user_info_api(request, user_id):
-    """
-    Returns display info (name + avatar) for a chat partner - used by the chat JS.
-
-    Approved trainers are public anyway; any other user is only visible to people
-    they actually have a conversation with, so ids cannot be enumerated to harvest
-    names of all clients.
-    """
-    target = User.objects.select_related('trainer_profile', 'client_profile').filter(pk=user_id).first()
-    if target is None:
-        return JsonResponse({'error': 'not found'}, status=404)
-
-    is_public_trainer = target.status == TrainerStatus.APPROVED_TRAINER
-    if not (is_public_trainer or target.pk == request.user.pk or users_share_chat_room(request.user.pk, target.pk)):
-        return JsonResponse({'error': 'not found'}, status=404)
-
-    return JsonResponse(get_user_display_info(target))

@@ -39,5 +39,4 @@ urlpatterns = [
 
     # Chat
     path('wiadomosci/', views.ChatView.as_view(), name='chat'),
-    path('api/user-info/<int:user_id>/', views.user_info_api, name='user_info_api'),
 ]

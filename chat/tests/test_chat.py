@@ -54,6 +54,19 @@ class TestRooms:
         assert len(rooms) == 1
         assert rooms[0]['last_message']['content'] == 'first'
 
+    def test_list_rooms_includes_partner_display_data(self, client):
+        create_room(client)
+
+        client_view = client.get('/rooms', headers=auth(CLIENT_ID)).json()[0]['partner']
+        trainer_view = client.get('/rooms', headers=auth(APPROVED_TRAINER_ID)).json()[0]['partner']
+
+        assert client_view == {
+            'id': APPROVED_TRAINER_ID, 'name': f'User {APPROVED_TRAINER_ID}',
+            'avatar_url': '', 'trainer_username': f'trainer-{APPROVED_TRAINER_ID}',
+        }
+        assert trainer_view['id'] == CLIENT_ID
+        assert trainer_view['trainer_username'] is None
+
     def test_outsider_cannot_read_messages(self, client):
         room_id = create_room(client).json()['id']
         response = client.get(f'/rooms/{room_id}/messages', headers=auth(OTHER_CLIENT_ID))
