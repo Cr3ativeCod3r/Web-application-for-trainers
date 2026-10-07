@@ -14,17 +14,40 @@ User = get_user_model()
 @pytest.mark.django_db
 class TestAuthService:
     @patch('apps.accounts.services.send_activation_email_task.delay')
-    def test_register_trainer_creates_inactive_user_and_sends_email(self, mock_send_email_task):
+    def test_register_trainer_creates_inactive_user_and_sends_email(self, mock_send_email_task, django_capture_on_commit_callbacks):
         """Test that registering a trainer creates a user, sets active=False, and delays the task."""
         email = "trainer@example.com"
         password = "trainerpass123"
         domain = "testserver.com"
-        
-        user = AuthService.register_trainer(email=email, password=password, domain=domain)
-        
+
+        with django_capture_on_commit_callbacks(execute=True):
+            user = AuthService.register_trainer(email=email, password=password, domain=domain)
+
         assert user.email == email
         assert user.is_active is False
         mock_send_email_task.assert_called_once_with(user.pk, domain)
+
+    @patch('apps.accounts.services.send_activation_email_client_task.delay')
+    def test_register_client_email_is_sent_only_after_commit(self, mock_send_email_task, django_capture_on_commit_callbacks):
+        """The Celery task must not be queued before the transaction commits."""
+        with django_capture_on_commit_callbacks() as callbacks:
+            user = AuthService.register_client('c@example.com', 'pass-1234-xyz', 'testserver', 'Jan', 'Nowak')
+            mock_send_email_task.assert_not_called()
+
+        assert len(callbacks) == 1
+        callbacks[0]()
+        mock_send_email_task.assert_called_once_with(user.pk, 'testserver')
+
+    @patch('apps.accounts.services.send_activation_email_client_task.delay')
+    @patch('apps.accounts.services.ClientProfile.objects.create', side_effect=RuntimeError('db error'))
+    def test_register_client_is_all_or_nothing(self, _mock_create, mock_send_email_task, django_capture_on_commit_callbacks):
+        """If the profile cannot be created, no orphaned user is left behind and no e-mail goes out."""
+        with django_capture_on_commit_callbacks(execute=True):
+            with pytest.raises(RuntimeError):
+                AuthService.register_client('c@example.com', 'pass-1234-xyz', 'testserver', 'Jan', 'Nowak')
+
+        assert not User.objects.filter(email='c@example.com').exists()
+        mock_send_email_task.assert_not_called()
 
     def test_activate_account_successful(self):
         """Test account activation with a valid token and uidb64."""

@@ -29,7 +29,7 @@ from django.contrib.auth import login
 
 from django.http import JsonResponse
 from .services import AuthService
-from .models import ClientProfile, TrainerStatus
+from .models import TrainerStatus
 from .selectors import get_user_display_info, users_share_chat_room
 
 @method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
@@ -50,12 +50,12 @@ class ClientRegisterView(CreateView):
         password = form.cleaned_data.get('password')
         domain = self.request.get_host()
 
-        # Register as client with client-specific activation email
-        user = AuthService.register_client(email, password, domain)
-        ClientProfile.objects.create(
-            user=user,
+        self.object = AuthService.register_client(
+            email,
+            password,
+            domain,
             first_name=form.cleaned_data['first_name'],
-            last_name=form.cleaned_data['last_name']
+            last_name=form.cleaned_data['last_name'],
         )
 
         if self.request.headers.get('Accept') == 'application/json':

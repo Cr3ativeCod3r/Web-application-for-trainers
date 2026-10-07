@@ -2,36 +2,41 @@ from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
+
+from .models import ClientProfile
 from .tasks import send_activation_email_task, send_activation_email_client_task
 
 User = get_user_model()
 
-class AuthService:    
+class AuthService:
     @staticmethod
+    def _create_inactive_user(email, password):
+        # The manager hashes the password; the account stays inactive until e-mail activation.
+        return User.objects.create_user(email=email, password=password, is_active=False)
+
+    @staticmethod
+    @transaction.atomic
     def register_trainer(email, password, domain):
         """
-        Creates a new user with an 'inactive' status and dispatches an activation email asynchronously.
+        Creates an inactive trainer account and sends the activation e-mail asynchronously.
         """
-        # Utilize the manager, which automatically hashes the password during creation
-        user = User.objects.create_user(email=email, password=password)
-        user.is_active = False
-        user.save()
-        
-        # Dispatch email sending in the background (Celery)
-        send_activation_email_task.delay(user.pk, domain)
+        user = AuthService._create_inactive_user(email, password)
+        # Queue the e-mail only after COMMIT: otherwise the worker may run before the row
+        # is visible (User.DoesNotExist) or send a link for a user that was rolled back.
+        transaction.on_commit(lambda: send_activation_email_task.delay(user.pk, domain))
         return user
 
     @staticmethod
-    def register_client(email, password, domain):
+    @transaction.atomic
+    def register_client(email, password, domain, first_name, last_name):
         """
-        Creates a new user with an 'inactive' status and dispatches a client activation email asynchronously.
+        Creates an inactive client account together with its profile (all-or-nothing)
+        and sends the client activation e-mail asynchronously.
         """
-        user = User.objects.create_user(email=email, password=password)
-        user.is_active = False
-        user.save()
-
-        # Dispatch email sending in the background (Celery)
-        send_activation_email_client_task.delay(user.pk, domain)
+        user = AuthService._create_inactive_user(email, password)
+        ClientProfile.objects.create(user=user, first_name=first_name, last_name=last_name)
+        transaction.on_commit(lambda: send_activation_email_client_task.delay(user.pk, domain))
         return user
 
     @staticmethod
@@ -48,7 +53,7 @@ class AuthService:
 
         if user is not None and default_token_generator.check_token(user, token):
             user.is_active = True
-            user.save()
+            user.save(update_fields=['is_active'])
             return True, user
         
         return False, None

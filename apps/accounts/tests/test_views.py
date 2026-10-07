@@ -21,7 +21,7 @@ class TestAccountViews:
         assert 'form' in response.context
 
     @patch('apps.accounts.services.send_activation_email_client_task.delay')
-    def test_register_view_post_success(self, mock_send_email_task, client):
+    def test_register_view_post_success(self, mock_send_email_task, client, django_capture_on_commit_callbacks):
         """Client registration creates an inactive user with a profile and queues the activation email."""
         url = reverse('accounts:register')
         data = {
@@ -30,7 +30,8 @@ class TestAccountViews:
             'last_name': 'Kowalski',
             'password': 'strongpassword123'
         }
-        response = client.post(url, data)
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post(url, data)
         assert response.status_code == 302
         assert response.url == reverse('trainers:home_search')
 
@@ -40,14 +41,15 @@ class TestAccountViews:
         mock_send_email_task.assert_called_once()
 
     @patch('apps.accounts.services.send_activation_email_task.delay')
-    def test_trainer_register_view_post_success(self, mock_send_email_task, client):
+    def test_trainer_register_view_post_success(self, mock_send_email_task, client, django_capture_on_commit_callbacks):
         """Trainer registration creates an inactive user and queues the trainer activation email."""
         url = reverse('trainers:register')
         data = {
             'email': 'newtrainer@example.com',
             'password': 'strongpassword123'
         }
-        response = client.post(url, data)
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post(url, data)
         assert response.status_code == 302
         assert response.url == reverse('trainers:registration_success')
 
