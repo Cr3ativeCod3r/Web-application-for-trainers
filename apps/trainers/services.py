@@ -1,7 +1,12 @@
 import os
+
+from django.core.files.base import ContentFile
 from django.db import transaction
-from .models import TrainerProfile, TrainerProfileUpdate
+
 from apps.accounts.models import TrainerStatus
+
+from .models import TrainerProfile, TrainerProfileContent, TrainerProfileUpdate
+
 
 def apply_for_trainer(user, profile: TrainerProfile) -> TrainerProfile:
     """
@@ -11,7 +16,7 @@ def apply_for_trainer(user, profile: TrainerProfile) -> TrainerProfile:
     with transaction.atomic():
         profile.user = user
         profile.save()
-        
+
         user.status = TrainerStatus.PENDING_APPLICATION
         user.save()
     return profile
@@ -25,45 +30,54 @@ def approve_trainer(profile: TrainerProfile) -> TrainerProfile:
         profile.user.save()
     return profile
 
+def ban_trainer(profile: TrainerProfile) -> TrainerProfile:
+    """Suspend a trainer: deactivate the account so they can no longer log in."""
+    user = profile.user
+    user.is_active = False
+    user.status = TrainerStatus.BANNED
+    user.save(update_fields=['is_active', 'status'])
+    return profile
+
+def unban_trainer(profile: TrainerProfile) -> TrainerProfile:
+    """Restore a suspended trainer account."""
+    user = profile.user
+    user.is_active = True
+    user.status = TrainerStatus.APPROVED_TRAINER
+    user.save(update_fields=['is_active', 'status'])
+    return profile
+
+def apply_profile_content(source: TrainerProfileContent, target: TrainerProfileContent) -> None:
+    """Copy every editable plain field from one profile-like object to another (in memory)."""
+    for field_name in TrainerProfileContent.content_field_names():
+        setattr(target, field_name, getattr(source, field_name))
+
+
 def approve_profile_update(update_obj: TrainerProfileUpdate) -> TrainerProfile:
     """
-    Service to approve a pending profile update. 
+    Service to approve a pending profile update.
     Applies the changes to the main TrainerProfile and deletes the pending update.
     """
     profile = update_obj.profile
-    
+
     with transaction.atomic():
-        # Copy fields from update object to the main profile
-        profile.full_name = update_obj.full_name
+        apply_profile_content(update_obj, profile)
         profile.sports.set(update_obj.sports.all())
-        profile.location = update_obj.location
-        profile.headline = update_obj.headline
-        profile.description = update_obj.description
-        profile.classes_description = update_obj.classes_description
-        profile.hourly_rate = update_obj.hourly_rate
-        profile.contact_email = update_obj.contact_email
-        profile.contact_phone = update_obj.contact_phone
-        
-        # Handle profile picture replacement
+
         if update_obj.profile_picture:
             # Duplicate the file so django-cleanup can safely delete the pending one
-            from django.core.files.base import ContentFile
             profile.profile_picture.save(
                 os.path.basename(update_obj.profile_picture.name),
                 ContentFile(update_obj.profile_picture.read()),
                 save=False
             )
-            
-        profile.instagram = update_obj.instagram
-        profile.facebook = update_obj.facebook
-        profile.tiktok = update_obj.tiktok
-        profile.tags = update_obj.tags
+
         profile.save()
-        
+
         # Remove the pending update request (django-cleanup will delete its file)
         update_obj.delete()
-        
+
     return profile
+
 
 def reject_profile_update(update_obj: TrainerProfileUpdate) -> None:
     """

@@ -1,5 +1,15 @@
 from django import forms
-from .models import TrainerProfile
+
+from .models import TrainerPost, TrainerProfile, TrainerProfileUpdate
+
+# Explicit allow-lists (not `exclude`): a field added to the model later must not become
+# user-editable by accident, and the order below is the order fields are rendered in.
+PROFILE_FORM_FIELDS = [
+    'full_name', 'sports', 'location', 'headline', 'tags', 'description', 'classes_description',
+    'hourly_rate', 'contact_email', 'contact_phone', 'profile_picture',
+    'instagram', 'facebook', 'tiktok', 'gender', 'training_type',
+]
+
 
 class CommaSeparatedTagsField(forms.CharField):
     def prepare_value(self, value):
@@ -25,7 +35,7 @@ class TrainerApplicationForm(forms.ModelForm):
 
     class Meta:
         model = TrainerProfile
-        exclude = ('user', 'created_at', 'updated_at')
+        fields = ['username', *PROFILE_FORM_FIELDS]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'classes_description': forms.Textarea(attrs={'rows': 4}),
@@ -55,7 +65,6 @@ class TrainerApplicationForm(forms.ModelForm):
         return username
 
 
-from .models import TrainerProfileUpdate
 
 class TrainerProfileUpdateForm(forms.ModelForm):
     tags = CommaSeparatedTagsField(
@@ -66,7 +75,7 @@ class TrainerProfileUpdateForm(forms.ModelForm):
 
     class Meta:
         model = TrainerProfileUpdate
-        exclude = ('profile', 'created_at')
+        fields = PROFILE_FORM_FIELDS
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
             'classes_description': forms.Textarea(attrs={'rows': 4}),
@@ -89,7 +98,6 @@ class TrainerProfileUpdateForm(forms.ModelForm):
         return picture
 
 
-from .models import TrainerPost
 
 class TrainerPostForm(forms.ModelForm):
     class Meta:

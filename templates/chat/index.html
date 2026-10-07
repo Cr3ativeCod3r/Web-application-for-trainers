@@ -377,10 +377,15 @@
         const av = avatarEl(user, 46, 'room-avatar');
         const info = document.createElement('div');
         info.className = 'room-info';
-        info.innerHTML = `
-          <div class="room-name">${user.name || 'Nieznany użytkownik'}</div>
-          <div class="room-last-msg">${lastMsg ? lastMsg.content : 'Brak wiadomości'}</div>
-        `;
+        // Names and messages are user-controlled: build nodes with textContent, never innerHTML.
+        const nameEl = document.createElement('div');
+        nameEl.className = 'room-name';
+        nameEl.textContent = user.name || 'Nieznany użytkownik';
+        const lastMsgEl = document.createElement('div');
+        lastMsgEl.className = 'room-last-msg';
+        lastMsgEl.textContent = lastMsg ? lastMsg.content : 'Brak wiadomości';
+        info.appendChild(nameEl);
+        info.appendChild(lastMsgEl);
         el.appendChild(av);
         el.appendChild(info);
         el.onclick = () => { loadRoom(room.id, el, user); closeSidebar(); };
@@ -420,7 +425,7 @@
     chatHeader.style.cursor = 'default';
     chatHeader.onclick = null;
     if (otherUser && otherUser.trainer_username) {
-      profileBtn.href = '/' + otherUser.trainer_username + '/';
+      profileBtn.href = '/' + encodeURIComponent(otherUser.trainer_username) + '/';
       profileBtn.style.display = 'flex';
     } else {
       profileBtn.style.display = 'none';
@@ -446,9 +451,18 @@
 
     // WebSocket
     if (socket) socket.close();
-    socket = new WebSocket(`${WS_BASE}/ws/chat/${roomId}?token=${jwtToken}`);
+    socket = new WebSocket(`${WS_BASE}/ws/chat/${encodeURIComponent(roomId)}?token=${encodeURIComponent(jwtToken)}`);
     socket.onmessage = function(e) {
       const data = JSON.parse(e.data);
+      if (data.error) {
+        // Server-side validation (message too long / sent too fast)
+        if (typeof Toastify !== 'undefined') {
+          Toastify({ text: data.error, duration: 3000, gravity: "top", position: "center" }).showToast();
+        } else {
+          console.warn(data.error);
+        }
+        return;
+      }
       if (data.sender_id !== currentUserId) {
         appendMessage(data.content, false, otherUser, data.created_at || new Date().toISOString());
         scrollToBottom();

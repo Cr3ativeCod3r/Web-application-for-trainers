@@ -1,10 +1,11 @@
-import factory
 import random
+
+import factory
 from django.utils.text import slugify
 from faker import Faker
 
-from apps.trainers.models import TrainerProfile, TrainerProfileUpdate, TrainerPost
 from apps.accounts.tests.factories import UserFactory
+from apps.trainers.models import TrainerPost, TrainerProfile, TrainerProfileUpdate
 
 fake = Faker('pl_PL')
 
@@ -14,19 +15,19 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     gender = factory.LazyAttribute(lambda _: random.choice(['M', 'F']))
-    
+
     @factory.lazy_attribute
     def full_name(self):
         if self.gender == 'M':
             return fake.first_name_male()
         return fake.first_name_female()
-    
+
     @factory.lazy_attribute
     def username(self):
         return slugify(self.full_name) + '-' + str(random.randint(1000, 9999))
-        
+
     training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
-        
+
     location = factory.LazyAttribute(lambda _: fake.city())
     headline = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
     description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=500))
@@ -46,8 +47,8 @@ class TrainerProfileFactory(factory.django.DjangoModelFactory):
         else:
             from apps.trainers.models import Sport
             sport_name = random.choice([
-                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie', 
-                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie', 
+                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie',
+                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie',
                 'Sztuki walki', 'Kulturystyka'
             ])
             sport_obj, _ = Sport.objects.get_or_create(name=sport_name)
@@ -60,15 +61,15 @@ class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
 
     profile = factory.SubFactory(TrainerProfileFactory)
     gender = factory.LazyAttribute(lambda _: random.choice(['M', 'F']))
-    
+
     @factory.lazy_attribute
     def full_name(self):
         if self.gender == 'M':
             return fake.first_name_male()
         return fake.first_name_female()
-        
+
     training_type = factory.LazyAttribute(lambda _: random.choice(['STATIONARY', 'ONLINE', 'BOTH']))
-        
+
     location = factory.LazyAttribute(lambda _: fake.city())
     headline = factory.LazyAttribute(lambda _: fake.sentence(nb_words=4)[:-1])
     description = factory.LazyAttribute(lambda _: fake.text(max_nb_chars=500))
@@ -88,8 +89,8 @@ class TrainerProfileUpdateFactory(factory.django.DjangoModelFactory):
         else:
             from apps.trainers.models import Sport
             sport_name = random.choice([
-                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie', 
-                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie', 
+                'Trening personalny', 'Joga', 'Pilates', 'Boks', 'Pływanie',
+                'Trening siłowy', 'Crossfit', 'Zumba', 'Taniec', 'Bieganie',
                 'Sztuki walki', 'Kulturystyka'
             ])
             sport_obj, _ = Sport.objects.get_or_create(name=sport_name)

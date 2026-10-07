@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: trainapp
+          POSTGRES_USER: trainuser
+          POSTGRES_PASSWORD: trainpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trainuser"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SECRET_KEY: ci-only-insecure-secret-key-not-for-production-use
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: trainapp
+      DB_USER: trainuser
+      DB_PASS: trainpass
+      CHAT_TEST_DB_NAME: chat_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-packages
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Django system checks
+        run: uv run python manage.py check
+
+      - name: Migrations are up to date
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Django tests
+        run: uv run pytest
+
+      - name: Create chat test database
+        run: PGPASSWORD=trainpass psql -h localhost -U trainuser -d trainapp -c "CREATE DATABASE chat_test"
+
+      - name: Chat service tests
+        working-directory: chat
+        run: uv run pytest

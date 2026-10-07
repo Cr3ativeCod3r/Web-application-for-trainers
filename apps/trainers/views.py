@@ -1,59 +1,87 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.contrib.auth.decorators import login_required
+from functools import wraps
+
+from django.conf import settings
 from django.contrib import messages
-from .models import TrainerProfile
-from .forms import TrainerApplicationForm
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from apps.accounts.models import TrainerStatus
 
-from django.http import JsonResponse
+from . import selectors, services
+from .forms import TrainerApplicationForm, TrainerPostForm, TrainerProfileUpdateForm
+from .models import TrainerPost, TrainerProfile, TrainerProfileContent
 
-from . import selectors
-from . import services
 
-from django_ratelimit.decorators import ratelimit
-from django.core.paginator import Paginator
-from django.contrib.auth import logout
-from .forms import TrainerProfileUpdateForm, TrainerPostForm
-from .models import TrainerProfileUpdate, TrainerPost
-import os
+def trainer_profile_required(view_func):
+    """
+    Requires a logged-in user with a trainer profile and passes it to the view
+    as `profile`; users without one are sent to the application form.
+    """
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        profile = getattr(request.user, 'trainer_profile', None)
+        if profile is None:
+            messages.error(request, "Nie masz jeszcze profilu trenera.")
+            return redirect('trainers:apply')
+        return view_func(request, *args, profile=profile, **kwargs)
+    return wrapper
+
+
+# --- Public ----------------------------------------------------------------
+
 def home_search_view(request):
-    """
-    View for the home search page with filtering capabilities.
-    """
+    """Home page with trainer search and filters."""
     query_sport = request.GET.get('sport', '').strip()
     query_location = request.GET.get('location', '').strip()
     query_type = request.GET.get('type', '').strip()
-    
-    # Use selector to fetch trainers
+
     trainers = selectors.search_trainers(query_sport, query_location, query_type)
-    
-    paginator = Paginator(trainers, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
+    page_obj = Paginator(trainers, 12).get_page(request.GET.get('page'))
+
     return render(request, 'trainers/home_search.html', {
         'trainers': page_obj,
         'query_sport': query_sport,
         'query_location': query_location,
-        'query_type': query_type
+        'query_type': query_type,
     })
 
+
 def autocomplete_view(request):
-    """
-    Returns JSON suggestions for sports and locations.
-    """
+    """Returns JSON suggestions for sports and locations."""
     q_type = request.GET.get('type', '')
     q = request.GET.get('q', '').strip().lower()
-    
-    # Use selector for autocomplete
-    results = selectors.get_autocomplete_suggestions(q_type, q)
-            
-    return JsonResponse({'results': results})
+    return JsonResponse({'results': selectors.get_autocomplete_suggestions(q_type, q)})
 
+
+def public_profile_view(request, username):
+    profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
+    context = {
+        'profile': profile,
+        'chat_api_url': settings.CHAT_API_URL,
+    }
+    if request.user.is_authenticated:
+        context['jwt_token'] = str(RefreshToken.for_user(request.user).access_token)
+
+    return render(request, 'trainers/public_profile.html', context)
+
+
+def public_post_view(request, username, slug):
+    profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
+    post = get_object_or_404(TrainerPost, trainer=profile, slug=slug)
+    return render(request, 'trainers/public_post.html', {'profile': profile, 'post': post})
+
+
+# --- Trainer application & account ---------------------------------------
 
 @login_required
-@ratelimit(key='user', rate='5/m', block=True)
+@ratelimit(key='user', rate='5/m', method='POST', block=True)
 def apply_trainer_view(request):
     # Only allow application if they haven't applied yet
     if request.user.status != TrainerStatus.REGISTERED:
@@ -64,11 +92,8 @@ def apply_trainer_view(request):
         form = TrainerApplicationForm(request.POST, request.FILES)
         if form.is_valid():
             profile = form.save(commit=False)
-            
-            # Use service to apply
             services.apply_for_trainer(request.user, profile)
             form.save_m2m()
-            
             messages.success(request, "Twój wniosek został wysłany. Oczekuj na weryfikację!")
             return redirect('trainers:home_search')
     else:
@@ -77,116 +102,60 @@ def apply_trainer_view(request):
     return render(request, 'trainers/apply.html', {'form': form})
 
 
-
-def public_profile_view(request, username):
-    profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
-    from django.conf import settings
-    context = {
-        'profile': profile,
-        'chat_api_url': getattr(settings, 'CHAT_API_URL', 'http://localhost:8001'),
-    }
-    
-    if request.user.is_authenticated:
-        from rest_framework_simplejwt.tokens import RefreshToken
-        refresh = RefreshToken.for_user(request.user)
-        context['jwt_token'] = str(refresh.access_token)
-        
-    return render(request, 'trainers/public_profile.html', context)
-
-@login_required
-@ratelimit(key='user', rate='10/m', block=True)
-def trainer_account_view(request):
-    try:
-        profile = request.user.trainer_profile
-    except TrainerProfile.DoesNotExist:
-        messages.error(request, "Nie masz jeszcze profilu trenera.")
-        return redirect('trainers:apply')
-    
+@trainer_profile_required
+@ratelimit(key='user', rate='10/m', method='POST', block=True)
+def trainer_account_view(request, profile):
     pending_update = getattr(profile, 'pending_update', None)
-    
+
     if request.method == 'POST':
         form = TrainerProfileUpdateForm(request.POST, request.FILES, instance=pending_update)
         if form.is_valid():
-            # The old image deletion is now handled automatically by django-cleanup.
+            # Replaced images are removed automatically by django-cleanup.
             update_obj = form.save(commit=False)
             update_obj.profile = profile
             update_obj.save()
             form.save_m2m()
             messages.success(request, "Twoje zmiany zostały zapisane i oczekują na akceptację administratora.")
             return redirect('trainers:account')
+    elif pending_update:
+        form = TrainerProfileUpdateForm(instance=pending_update)
     else:
-        # Pre-fill with pending_update if exists, otherwise profile
-        if pending_update:
-            form = TrainerProfileUpdateForm(instance=pending_update)
-        else:
-            # We need to create an instance-like dictionary or just use initial
-            initial_data = {
-                'full_name': profile.full_name,
-                'sports': profile.sports.all(),
-                'location': profile.location,
-                'headline': profile.headline,
-                'description': profile.description,
-                'classes_description': profile.classes_description,
-                'hourly_rate': profile.hourly_rate,
-                'contact_email': profile.contact_email,
-                'contact_phone': profile.contact_phone,
-                'profile_picture': profile.profile_picture,
-                'instagram': profile.instagram,
-                'facebook': profile.facebook,
-                'tiktok': profile.tiktok,
-                'gender': profile.gender,
-                'training_type': profile.training_type,
-                'tags': ', '.join(profile.tags) if profile.tags else '',
-            }
-            form = TrainerProfileUpdateForm(initial=initial_data)
+        # No pending update yet: start the form from the live profile values
+        initial_data = {name: getattr(profile, name) for name in TrainerProfileContent.content_field_names()}
+        initial_data['sports'] = profile.sports.all()
+        initial_data['profile_picture'] = profile.profile_picture
+        form = TrainerProfileUpdateForm(initial=initial_data)
 
     return render(request, 'trainers/account.html', {'form': form, 'pending_update': pending_update, 'profile': profile})
 
 
-
 @login_required
+@require_POST
 def delete_account_view(request):
-    if request.method == 'POST':
-        password = request.POST.get('password')
-        if request.user.check_password(password):
-            user = request.user
-            # The image deletion is now handled automatically by django-cleanup upon user.delete() cascading.
-                
-            logout(request)
-            user.delete()
-            messages.success(request, "Twoje konto wraz ze wszystkimi danymi zostało trwale usunięte.")
-            return redirect('accounts:login')
-        else:
-            messages.error(request, "Podane hasło jest nieprawidłowe. Konto nie zostało usunięte.")
-    return redirect('trainers:account')
+    if not request.user.check_password(request.POST.get('password')):
+        messages.error(request, "Podane hasło jest nieprawidłowe. Konto nie zostało usunięte.")
+        return redirect('trainers:account')
+
+    user = request.user
+    logout(request)
+    # Related profile, posts and images are removed by CASCADE + django-cleanup.
+    user.delete()
+    messages.success(request, "Twoje konto wraz ze wszystkimi danymi zostało trwale usunięte.")
+    return redirect('accounts:login')
 
 
+# --- Trainer posts ---------------------------------------------------------
 
-@login_required
-def post_list_view(request):
-    try:
-        profile = request.user.trainer_profile
-    except TrainerProfile.DoesNotExist:
-        messages.error(request, "Nie masz jeszcze profilu trenera.")
-        return redirect('trainers:apply')
-        
+@trainer_profile_required
+def post_list_view(request, profile):
     posts = TrainerPost.objects.filter(trainer=profile).order_by('-created_at')
-    
-    paginator = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
+    page_obj = Paginator(posts, 10).get_page(request.GET.get('page'))
     return render(request, 'trainers/post_list.html', {'posts': page_obj})
 
-@login_required
-@ratelimit(key='user', rate='10/m', block=True)
-def post_create_view(request):
-    try:
-        profile = request.user.trainer_profile
-    except TrainerProfile.DoesNotExist:
-        messages.error(request, "Nie masz jeszcze profilu trenera.")
-        return redirect('trainers:apply')
-        
+
+@trainer_profile_required
+@ratelimit(key='user', rate='10/m', method='POST', block=True)
+def post_create_view(request, profile):
     if request.method == 'POST':
         form = TrainerPostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -197,19 +166,14 @@ def post_create_view(request):
             return redirect('trainers:post_list')
     else:
         form = TrainerPostForm()
-        
+
     return render(request, 'trainers/post_form.html', {'form': form, 'title': 'Dodaj nowy post'})
 
-@login_required
-def post_edit_view(request, post_id):
-    try:
-        profile = request.user.trainer_profile
-    except TrainerProfile.DoesNotExist:
-        messages.error(request, "Nie masz profilu trenera.")
-        return redirect('trainers:apply')
-        
+
+@trainer_profile_required
+def post_edit_view(request, post_id, profile):
     post = get_object_or_404(TrainerPost, id=post_id, trainer=profile)
-    
+
     if request.method == 'POST':
         form = TrainerPostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
@@ -218,76 +182,14 @@ def post_edit_view(request, post_id):
             return redirect('trainers:post_list')
     else:
         form = TrainerPostForm(instance=post)
-        
+
     return render(request, 'trainers/post_form.html', {'form': form, 'title': 'Edytuj post', 'post': post})
 
-@login_required
-def post_delete_view(request, post_id):
-    try:
-        profile = request.user.trainer_profile
-    except TrainerProfile.DoesNotExist:
-        messages.error(request, "Nie masz profilu trenera.")
-        return redirect('trainers:apply')
-        
+
+@trainer_profile_required
+@require_POST
+def post_delete_view(request, post_id, profile):
     post = get_object_or_404(TrainerPost, id=post_id, trainer=profile)
-    
-    if request.method == 'POST':
-        post.delete()
-        messages.success(request, "Post został pomyślnie usunięty.")
-        
+    post.delete()
+    messages.success(request, "Post został pomyślnie usunięty.")
     return redirect('trainers:post_list')
-
-def public_post_view(request, username, slug):
-    profile = get_object_or_404(TrainerProfile, username=username, user__status=TrainerStatus.APPROVED_TRAINER)
-    post = get_object_or_404(TrainerPost, trainer=profile, slug=slug)
-    
-    return render(request, 'trainers/public_post.html', {'profile': profile, 'post': post})
-
-
-# Auth Views moved from accounts
-from django.contrib.auth.views import LoginView
-from django.views.generic.edit import CreateView
-from django.views.generic import TemplateView
-from django.urls import reverse_lazy
-from apps.accounts.forms import TrainerRegistrationForm, CustomAuthenticationForm
-from apps.accounts.services import AuthService
-from django.utils.decorators import method_decorator
-
-@method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
-@method_decorator(ratelimit(key='post:username', rate='5/m', block=True), name='dispatch')
-class TrainerLoginView(LoginView):
-    template_name = 'trainers/login.html'
-    form_class = CustomAuthenticationForm
-    redirect_authenticated_user = True
-
-    def form_valid(self, form):
-        remember_me = form.cleaned_data.get('remember_me')
-        if not remember_me:
-            self.request.session.set_expiry(0)
-            self.request.session.modified = True
-        else:
-            self.request.session.set_expiry(1209600)
-            self.request.session.modified = True
-        return super().form_valid(form)
-
-@method_decorator(ratelimit(key='ip', rate='5/m', block=True), name='dispatch')
-class TrainerRegisterView(CreateView):
-    template_name = 'trainers/register.html'
-    form_class = TrainerRegistrationForm
-    success_url = reverse_lazy('trainers:registration_success')
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('trainers:home_search')
-        return super().dispatch(request, *args, **kwargs)
-
-    def form_valid(self, form):
-        email = form.cleaned_data.get('email')
-        password = form.cleaned_data.get('password')
-        domain = self.request.get_host()
-        
-        self.object = AuthService.register_trainer(email, password, domain)
-        return redirect(self.success_url)
-
-class RegistrationSuccessView(TemplateView):
-    template_name = 'trainers/registration_success.html'

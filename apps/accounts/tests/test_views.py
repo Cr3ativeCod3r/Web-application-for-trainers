@@ -1,11 +1,12 @@
-import pytest
 from unittest.mock import patch
-from django.urls import reverse
+
+import pytest
 from django.contrib.auth import get_user_model
-from django.contrib.messages import get_messages
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.messages import get_messages
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from apps.accounts.tests.factories import UserFactory
 
@@ -20,19 +21,39 @@ class TestAccountViews:
         assert response.status_code == 200
         assert 'form' in response.context
 
-    @patch('apps.accounts.services.send_activation_email_task.delay')
-    def test_register_view_post_success(self, mock_send_email_task, client):
-        """Test registration POST request with valid data."""
+    @patch('apps.accounts.services.send_activation_email_client_task.delay')
+    def test_register_view_post_success(self, mock_send_email_task, client, django_capture_on_commit_callbacks):
+        """Client registration creates an inactive user with a profile and queues the activation email."""
         url = reverse('accounts:register')
+        data = {
+            'email': 'newclient@example.com',
+            'first_name': 'Jan',
+            'last_name': 'Kowalski',
+            'password': 'strongpassword123'
+        }
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post(url, data)
+        assert response.status_code == 302
+        assert response.url == reverse('trainers:home_search')
+
+        user = User.objects.get(email='newclient@example.com')
+        assert user.is_active is False
+        assert user.client_profile.first_name == 'Jan'
+        mock_send_email_task.assert_called_once()
+
+    @patch('apps.accounts.services.send_activation_email_task.delay')
+    def test_trainer_register_view_post_success(self, mock_send_email_task, client, django_capture_on_commit_callbacks):
+        """Trainer registration creates an inactive user and queues the trainer activation email."""
+        url = reverse('trainers:register')
         data = {
             'email': 'newtrainer@example.com',
             'password': 'strongpassword123'
         }
-        response = client.post(url, data)
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post(url, data)
         assert response.status_code == 302
-        assert response.url == reverse('accounts:registration_success')
+        assert response.url == reverse('trainers:registration_success')
 
-        # Check user was created and is inactive
         user = User.objects.get(email='newtrainer@example.com')
         assert user.is_active is False
         mock_send_email_task.assert_called_once()
@@ -126,3 +147,25 @@ class TestAccountViews:
 
         user.refresh_from_db()
         assert user.is_active is False
+
+
+@pytest.mark.django_db
+class TestLoginRedirect:
+    password = 'strongpassword123'
+
+    def _login(self, client, next_url):
+        user = UserFactory(is_active=True)
+        user.set_password(self.password)
+        user.save()
+        url = reverse('accounts:login') + f'?next={next_url}'
+        return client.post(url, {'username': user.email, 'password': self.password})
+
+    def test_redirects_to_safe_next_url(self, client):
+        response = self._login(client, '/wiadomosci/')
+        assert response.status_code == 302
+        assert response.url == '/wiadomosci/'
+
+    def test_ignores_external_next_url(self, client):
+        response = self._login(client, 'https://evil.example.com/')
+        assert response.status_code == 302
+        assert response.url == reverse('trainers:home_search')

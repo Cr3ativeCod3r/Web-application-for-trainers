@@ -1,7 +1,9 @@
-from typing import Set
-from django.db.models import QuerySet, Q
-from .models import TrainerProfile
+from django.db.models import Q, QuerySet
+
 from apps.accounts.models import TrainerStatus
+
+from .models import TrainerProfile, TrainingType
+
 
 def get_approved_trainers() -> QuerySet[TrainerProfile]:
     """Returns a queryset of approved trainer profiles."""
@@ -14,14 +16,14 @@ def search_trainers(sport: str = '', location: str = '', training_type: str = ''
     Search approved trainers based on sport, location, and training type.
     """
     trainers = get_approved_trainers()
-    
+
     if sport:
         trainers = trainers.filter(sports__name__icontains=sport).distinct()
     if location:
         trainers = trainers.filter(location__icontains=location)
-    if training_type in ['ONLINE', 'STATIONARY']:
-        trainers = trainers.filter(Q(training_type=training_type) | Q(training_type='BOTH'))
-        
+    if training_type in (TrainingType.ONLINE, TrainingType.STATIONARY):
+        trainers = trainers.filter(Q(training_type=training_type) | Q(training_type=TrainingType.BOTH))
+
     return trainers.order_by('-created_at')
 
 def get_autocomplete_suggestions(q_type: str, query: str) -> list[str]:
@@ -30,9 +32,9 @@ def get_autocomplete_suggestions(q_type: str, query: str) -> list[str]:
     """
     if not query or len(query) < 1:
         return []
-        
+
     approved_profiles = get_approved_trainers()
-    
+
     if q_type == 'sport':
         from .models import Sport
         # Filter sports that are related to approved profiles and match query
@@ -41,9 +43,9 @@ def get_autocomplete_suggestions(q_type: str, query: str) -> list[str]:
             trainers__in=approved_profiles
         ).values_list('name', flat=True).distinct()
         return list(sports)[:10]
-        
+
     elif q_type == 'location':
         locations = approved_profiles.filter(location__icontains=query).values_list('location', flat=True).distinct()
         return list(locations)[:10]
-            
+
     return []

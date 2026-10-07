@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+
 from apps.accounts.models import TrainerStatus
 
 User = get_user_model()

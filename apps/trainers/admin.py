@@ -1,5 +1,3 @@
-from django.contrib import admin
-from .models import TrainerProfile, TrainerProfileUpdate
 
 # @admin.register(TrainerProfile)
 # class TrainerProfileAdmin(admin.ModelAdmin):
@@ -7,7 +5,7 @@ from .models import TrainerProfile, TrainerProfileUpdate
 #     search_fields = ('full_name', 'contact_email', 'sport', 'location', 'user__email')
 #     list_filter = ('gender', 'training_type', 'created_at')
 #     readonly_fields = ('created_at', 'updated_at')
-#     
+#
 #     fieldsets = (
 #         ('Powiązanie z kontem', {'fields': ('user', 'username')}),
 #         ('Podstawowe dane', {'fields': ('full_name', 'sport', 'location', 'headline', 'hourly_rate', 'gender', 'training_type')}),

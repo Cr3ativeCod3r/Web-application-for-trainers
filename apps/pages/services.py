@@ -1,8 +1,9 @@
 import json
-import os
+
+from django.conf import settings
 from google import genai
 from google.genai import types
-from django.conf import settings
+
 
 class AIServiceError(Exception):
     """Custom exception for AI service errors."""
@@ -14,10 +15,10 @@ def get_ai_sport_recommendation(answers: list, available_sports: list) -> dict:
     Returns a dictionary with 'recommendation' and 'suggested_sport'.
     """
     sports_str = ", ".join(sorted(available_sports)) if available_sports else "Brak sportów w bazie"
-    
+
     prompt = f"""Na podstawie poniższych odpowiedzi użytkownika na 13 pytań, doradź mu jaki sport będzie dla niego najlepszy.
-Z poniższej listy sportów (to dyscypliny oferowane przez naszych trenerów), wybierz JEDEN, który najlepiej pasuje: [{sports_str}]. 
-Jeśli żaden nie pasuje w 100%, wybierz ten najbliższy prawdy. 
+Z poniższej listy sportów (to dyscypliny oferowane przez naszych trenerów), wybierz JEDEN, który najlepiej pasuje: [{sports_str}].
+Jeśli żaden nie pasuje w 100%, wybierz ten najbliższy prawdy.
 
 Zwróć odpowiedź WYŁĄCZNIE jako poprawny obiekt JSON (bez markdown block) o strukturze:
 {{
@@ -29,11 +30,11 @@ Odpowiedzi użytkownika:
 """
     for item in answers:
         prompt += f"Pytanie: {item.get('question')}\nOdpowiedź: {item.get('answer')}\n\n"
-        
+
     api_key = settings.API_GEMINI
     if not api_key:
         raise AIServiceError('Brak klucza API Gemini w konfiguracji serwera.')
-        
+
     client = genai.Client(api_key=api_key)
     try:
         response = client.models.generate_content(
@@ -44,8 +45,8 @@ Odpowiedzi użytkownika:
             )
         )
     except Exception as e:
-        raise AIServiceError(f'Błąd podczas łączenia z API Gemini: {str(e)}')
-    
+        raise AIServiceError(f'Błąd podczas łączenia z API Gemini: {e}') from e
+
     # Parse JSON
     try:
         response_text = response.text.strip()
@@ -53,11 +54,11 @@ Odpowiedzi użytkownika:
             response_text = response_text[7:-3].strip()
         elif response_text.startswith('```'):
             response_text = response_text[3:-3].strip()
-        
+
         result_data = json.loads(response_text)
         return {
             'recommendation': result_data.get('text', 'Błąd w formacie tekstu.'),
             'suggested_sport': result_data.get('suggested_sport', '')
         }
-    except Exception as e:
-        raise AIServiceError(f'Model zwrócił nieprawidłowy format (oczekiwano JSON). {str(e)}')
+    except (ValueError, AttributeError) as e:
+        raise AIServiceError(f'Model zwrócił nieprawidłowy format (oczekiwano JSON). {e}') from e

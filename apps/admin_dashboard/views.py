@@ -1,13 +1,14 @@
-from django.shortcuts import redirect, get_object_or_404
-from django.shortcuts import render
-from django.urls import reverse
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
-from apps.trainers.models import TrainerProfile, TrainerProfileUpdate, TrainerPost
 from apps.trainers import services
+from apps.trainers.models import TrainerPost, TrainerProfile, TrainerProfileUpdate
+
 from . import selectors
 
 
@@ -53,27 +54,30 @@ def admin_dashboard_view(request):
 
 
 @staff_member_required
+@require_POST
 def approve_trainer_view(request, profile_id):
     """Approve a pending trainer application."""
-    profile = TrainerProfile.objects.get(id=profile_id)
+    profile = get_object_or_404(TrainerProfile, id=profile_id)
     services.approve_trainer(profile)
     messages.success(request, f"Trener {profile.full_name} został zatwierdzony!")
     return redirect('admin_dashboard:dashboard')
 
 
 @staff_member_required
+@require_POST
 def approve_update_view(request, update_id):
     """Approve a pending profile update request."""
-    update_obj = TrainerProfileUpdate.objects.get(id=update_id)
+    update_obj = get_object_or_404(TrainerProfileUpdate, id=update_id)
     profile = services.approve_profile_update(update_obj)
     messages.success(request, f"Zmiany w profilu {profile.full_name} zostały zatwierdzone.")
     return redirect('admin_dashboard:dashboard')
 
 
 @staff_member_required
+@require_POST
 def reject_update_view(request, update_id):
     """Reject a pending profile update request."""
-    update_obj = TrainerProfileUpdate.objects.get(id=update_id)
+    update_obj = get_object_or_404(TrainerProfileUpdate, id=update_id)
     profile_name = update_obj.profile.full_name
     services.reject_profile_update(update_obj)
     messages.warning(request, f"Zmiany w profilu {profile_name} zostały odrzucone.")
@@ -94,73 +98,58 @@ def admin_update_preview_view(request, update_id):
     profile = update_obj.profile
 
     # Swap data in memory for preview (do not save)
-    profile.full_name = update_obj.full_name
+    services.apply_profile_content(update_obj, profile)
     profile._prefetched_objects_cache = {'sports': list(update_obj.sports.all())}
-    profile.location = update_obj.location
-    profile.headline = update_obj.headline
-    profile.description = update_obj.description
-    profile.classes_description = update_obj.classes_description
-    profile.hourly_rate = update_obj.hourly_rate
-    profile.contact_email = update_obj.contact_email
-    profile.contact_phone = update_obj.contact_phone
     if update_obj.profile_picture:
         profile.profile_picture = update_obj.profile_picture
-    profile.instagram = update_obj.instagram
-    profile.facebook = update_obj.facebook
-    profile.tiktok = update_obj.tiktok
-    profile.tags = update_obj.tags
 
     return render(request, 'trainers/public_profile.html', {'profile': profile, 'is_preview': True})
 
 
+superuser_required = user_passes_test(lambda u: u.is_active and u.is_superuser)
+
+
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@superuser_required
+@require_POST
 def ban_trainer_view(request, profile_id):
     """Ban a trainer account."""
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        user = profile.user
-        user.is_active = False
-        user.status = 'BANNED'
-        user.save()
-        messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
+    profile = get_object_or_404(TrainerProfile, id=profile_id)
+    services.ban_trainer(profile)
+    messages.success(request, f"Konto trenera {profile.full_name} zostało zawieszone.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=active')
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@superuser_required
+@require_POST
 def unban_trainer_view(request, profile_id):
     """Unban a trainer account."""
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        user = profile.user
-        user.is_active = True
-        user.status = 'APPROVED_TRAINER'
-        user.save()
-        messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
+    profile = get_object_or_404(TrainerProfile, id=profile_id)
+    services.unban_trainer(profile)
+    messages.success(request, f"Konto trenera {profile.full_name} zostało odwieszone.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=active')
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@superuser_required
+@require_POST
 def delete_trainer_view(request, profile_id):
     """Permanently delete a trainer account."""
-    if request.method == 'POST':
-        profile = get_object_or_404(TrainerProfile, id=profile_id)
-        full_name = profile.full_name
-        user = profile.user
-        user.delete()
-        messages.success(request, f"Konto trenera {full_name} zostało trwale usunięte.")
+    profile = get_object_or_404(TrainerProfile, id=profile_id)
+    full_name = profile.full_name
+    profile.user.delete()
+    messages.success(request, f"Konto trenera {full_name} zostało trwale usunięte.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=active')
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@superuser_required
+@require_POST
 def admin_delete_post_view(request, post_id):
     """Delete a trainer post from the admin dashboard."""
-    if request.method == 'POST':
-        post = get_object_or_404(TrainerPost, id=post_id)
-        title = post.title
-        post.delete()
-        messages.success(request, f"Post '{title}' został usunięty.")
+    post = get_object_or_404(TrainerPost, id=post_id)
+    title = post.title
+    post.delete()
+    messages.success(request, f"Post '{title}' został usunięty.")
     return redirect(reverse('admin_dashboard:dashboard') + '?tab=posts')

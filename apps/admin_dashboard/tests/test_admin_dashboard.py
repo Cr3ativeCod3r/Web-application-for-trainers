@@ -1,13 +1,14 @@
 import pytest
 from django.urls import reverse
-from apps.accounts.tests.factories import UserFactory
+
 from apps.accounts.models import TrainerStatus
+from apps.accounts.tests.factories import UserFactory
+from apps.admin_dashboard.selectors import get_admin_dashboard_data
 from apps.trainers.tests.factories import (
+    TrainerPostFactory,
     TrainerProfileFactory,
     TrainerProfileUpdateFactory,
-    TrainerPostFactory,
 )
-from apps.admin_dashboard.selectors import get_admin_dashboard_data
 
 
 @pytest.mark.django_db
@@ -73,7 +74,7 @@ class TestAdminDashboardViews:
         profile = TrainerProfileFactory(user=user)
 
         url = reverse('admin_dashboard:approve_trainer', kwargs={'profile_id': profile.id})
-        response = client.get(url)
+        response = client.post(url)
         assert response.status_code == 302
 
         user.refresh_from_db()
@@ -88,7 +89,7 @@ class TestAdminDashboardViews:
         update = TrainerProfileUpdateFactory(profile=profile, full_name="Updated Name")
 
         url = reverse('admin_dashboard:approve_update', kwargs={'update_id': update.id})
-        response = client.get(url)
+        response = client.post(url)
         assert response.status_code == 302
 
         profile.refresh_from_db()
@@ -103,8 +104,47 @@ class TestAdminDashboardViews:
         update = TrainerProfileUpdateFactory(profile=profile, full_name="Updated Name")
 
         url = reverse('admin_dashboard:reject_update', kwargs={'update_id': update.id})
-        response = client.get(url)
+        response = client.post(url)
         assert response.status_code == 302
 
         profile.refresh_from_db()
         assert profile.full_name == "Original Name"
+
+
+@pytest.mark.django_db
+class TestAdminDashboardStateChangingActions:
+    @pytest.fixture
+    def admin_client(self, client):
+        admin = UserFactory(is_staff=True, is_superuser=True, is_active=True, status=TrainerStatus.ADMIN)
+        client.force_login(admin)
+        return client
+
+    def test_approve_trainer_rejects_get(self, admin_client):
+        """State changes over GET could be triggered by a link/image on any page (CSRF)."""
+        user = UserFactory(status=TrainerStatus.PENDING_APPLICATION)
+        profile = TrainerProfileFactory(user=user)
+
+        url = reverse('admin_dashboard:approve_trainer', kwargs={'profile_id': profile.id})
+        response = admin_client.get(url)
+
+        assert response.status_code == 405
+        user.refresh_from_db()
+        assert user.status == TrainerStatus.PENDING_APPLICATION
+
+    def test_approve_missing_profile_returns_404(self, admin_client):
+        url = reverse('admin_dashboard:approve_trainer', kwargs={'profile_id': 999999})
+        assert admin_client.post(url).status_code == 404
+
+    def test_ban_and_unban_trainer(self, admin_client):
+        user = UserFactory(status=TrainerStatus.APPROVED_TRAINER, is_active=True)
+        profile = TrainerProfileFactory(user=user)
+
+        admin_client.post(reverse('admin_dashboard:ban_trainer', kwargs={'profile_id': profile.id}))
+        user.refresh_from_db()
+        assert user.status == TrainerStatus.BANNED
+        assert user.is_active is False
+
+        admin_client.post(reverse('admin_dashboard:unban_trainer', kwargs={'profile_id': profile.id}))
+        user.refresh_from_db()
+        assert user.status == TrainerStatus.APPROVED_TRAINER
+        assert user.is_active is True

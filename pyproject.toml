@@ -24,19 +24,45 @@ dependencies = [
     "djangorestframework>=3.17.1",
     "djangorestframework-simplejwt>=5.5.1",
     "greenlet>=3.5.3",
+    "nh3>=0.3.7",
+    "gunicorn>=26.2.0",
+    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.1.0",
     "pytest-django>=4.12.0",
+    "ruff>=0.16.10",
 ]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "core.test_settings"
 python_files = ["test_*.py", "*_test.py"]
+# The chat microservice has its own test suite (run from chat/).
+testpaths = ["apps"]
 
 [tool.uv.workspace]
 members = [
     "chat",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["**/migrations/**", "chat/alembic/**"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, import sorting, bugbear, pyupgrade, django-specific rules
+select = ["F", "E", "W", "I", "B", "UP", "DJ"]
+ignore = [
+    "E501",   # long lines are handled by the formatter's judgement, not a hard limit
+    "DJ001",  # existing nullable CharFields; changing them needs a data migration
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency markers are evaluated once on purpose
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "core", "auth", "config", "connection_manager", "database", "main", "models", "schemas"]

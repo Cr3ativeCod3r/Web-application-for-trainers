@@ -1,9 +1,9 @@
-from typing import Dict
+
 from django.db.models import QuerySet
 
-from apps.trainers.models import TrainerProfile, TrainerProfileUpdate, TrainerPost
-from apps.trainers.selectors import get_approved_trainers
 from apps.accounts.models import TrainerStatus
+from apps.trainers.models import TrainerPost, TrainerProfile, TrainerProfileUpdate
+from apps.trainers.selectors import get_approved_trainers
 
 
 def get_admin_dashboard_data(
@@ -12,7 +12,7 @@ def get_admin_dashboard_data(
     q_updates: str = '',
     q_banned: str = '',
     q_posts: str = ''
-) -> Dict[str, QuerySet]:
+) -> dict[str, QuerySet]:
     """
     Returns querysets needed for the admin dashboard, optionally filtered.
     """

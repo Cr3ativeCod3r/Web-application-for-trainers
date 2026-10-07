@@ -1,10 +1,23 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
+from django.contrib.auth.password_validation import validate_password
 
 User = get_user_model()
 
-class TrainerRegistrationForm(forms.ModelForm):
+
+class PasswordValidationMixin:
+    """Runs AUTH_PASSWORD_VALIDATORS (length, common passwords, similarity to e-mail...)."""
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password')
+        candidate = User(email=self.cleaned_data.get('email', ''))
+        validate_password(password, user=candidate)
+        return password
+
+
+# Registration forms only validate input; user creation lives in AuthService.
+class TrainerRegistrationForm(PasswordValidationMixin, forms.ModelForm):
     password = forms.CharField(
         label="Hasło",
         widget=forms.PasswordInput(attrs={'placeholder': 'Twoje hasło'})
@@ -14,14 +27,7 @@ class TrainerRegistrationForm(forms.ModelForm):
         model = User
         fields = ('email',)
 
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password"])
-        if commit:
-            user.save()
-        return user
-
-class ClientRegistrationForm(forms.ModelForm):
+class ClientRegistrationForm(PasswordValidationMixin, forms.ModelForm):
     first_name = forms.CharField(label="Imię", max_length=50, widget=forms.TextInput(attrs={'placeholder': 'Twoje imię'}))
     last_name = forms.CharField(label="Nazwisko", max_length=50, widget=forms.TextInput(attrs={'placeholder': 'Twoje nazwisko'}))
     password = forms.CharField(
@@ -33,20 +39,6 @@ class ClientRegistrationForm(forms.ModelForm):
         model = User
         fields = ('email',)
 
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password"])
-        # Status remains REGISTERED for standard users
-        user.is_active = True # We can auto-activate clients or keep email verification? User said simple. Let's auto-activate for now, or use the existing AuthService flow. 
-        if commit:
-            user.save()
-            from .models import ClientProfile
-            ClientProfile.objects.create(
-                user=user,
-                first_name=self.cleaned_data["first_name"],
-                last_name=self.cleaned_data["last_name"]
-            )
-        return user
 
 class CustomAuthenticationForm(AuthenticationForm):
     username = forms.EmailField(
@@ -60,7 +52,6 @@ class CustomAuthenticationForm(AuthenticationForm):
         'inactive': "Aby się zalogować, najpierw potwierdź swój adres e-mail, klikając w link z wiadomości rejestracyjnej.",
     }
 
-from django.contrib.auth.forms import SetPasswordForm
 
 class SinglePasswordSetForm(SetPasswordForm):
     new_password1 = forms.CharField(
@@ -74,9 +65,15 @@ class SinglePasswordSetForm(SetPasswordForm):
         if 'new_password2' in self.fields:
             del self.fields['new_password2']
 
-    def clean(self):
-        # Skip validation comparing two passwords from the base class
+    def clean_new_password1(self):
+        # Only one password field is shown, so there is nothing to compare,
+        # but the strength validators still have to run.
         password = self.cleaned_data.get('new_password1')
+        validate_password(password, self.user)
+        return password
+
+    def clean(self):
+        # Skip the base class check that compares new_password1 with new_password2.
         return self.cleaned_data
 
     def save(self, commit=True):

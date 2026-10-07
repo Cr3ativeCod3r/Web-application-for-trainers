@@ -1,4 +1,10 @@
-.venv
 .git
-__pycache__
-*.pyc
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.DS_Store
+# Secrets must never be baked into an image layer - they come from the runtime env
+.env
+media
+staticfiles

@@ -1,6 +1,9 @@
-from django.urls import path
-from django.contrib.auth import views as auth_views
 from django.conf import settings
+from django.contrib.auth import views as auth_views
+from django.urls import path
+
+from apps.accounts import views as account_views
+
 from . import views
 
 app_name = 'trainers'
@@ -17,9 +20,9 @@ urlpatterns = [
     path('usun-konto/', views.delete_account_view, name='delete_account'),
 
     # Auth routes must come BEFORE the wildcard <slug:username>/ pattern
-    path('trenerzy/', views.TrainerLoginView.as_view(), name='login'),
-    path('trenerzy/rejestracja/', views.TrainerRegisterView.as_view(), name='register'),
-    path('trenerzy/rejestracja/sukces/', views.RegistrationSuccessView.as_view(), name='registration_success'),
+    path('trenerzy/', account_views.TrainerLoginView.as_view(), name='login'),
+    path('trenerzy/rejestracja/', account_views.TrainerRegisterView.as_view(), name='register'),
+    path('trenerzy/rejestracja/sukces/', account_views.TrainerRegistrationSuccessView.as_view(), name='registration_success'),
     path('trenerzy/zapomnialem-hasla/', auth_views.PasswordResetView.as_view(
         template_name='accounts/password_reset.html',
         email_template_name='emails/trainers/password_reset.txt',
