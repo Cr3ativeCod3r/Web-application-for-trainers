@@ -20,19 +20,37 @@ class TestAccountViews:
         assert response.status_code == 200
         assert 'form' in response.context
 
-    @patch('apps.accounts.services.send_activation_email_task.delay')
+    @patch('apps.accounts.services.send_activation_email_client_task.delay')
     def test_register_view_post_success(self, mock_send_email_task, client):
-        """Test registration POST request with valid data."""
+        """Client registration creates an inactive user with a profile and queues the activation email."""
         url = reverse('accounts:register')
+        data = {
+            'email': 'newclient@example.com',
+            'first_name': 'Jan',
+            'last_name': 'Kowalski',
+            'password': 'strongpassword123'
+        }
+        response = client.post(url, data)
+        assert response.status_code == 302
+        assert response.url == reverse('trainers:home_search')
+
+        user = User.objects.get(email='newclient@example.com')
+        assert user.is_active is False
+        assert user.client_profile.first_name == 'Jan'
+        mock_send_email_task.assert_called_once()
+
+    @patch('apps.accounts.services.send_activation_email_task.delay')
+    def test_trainer_register_view_post_success(self, mock_send_email_task, client):
+        """Trainer registration creates an inactive user and queues the trainer activation email."""
+        url = reverse('trainers:register')
         data = {
             'email': 'newtrainer@example.com',
             'password': 'strongpassword123'
         }
         response = client.post(url, data)
         assert response.status_code == 302
-        assert response.url == reverse('accounts:registration_success')
+        assert response.url == reverse('trainers:registration_success')
 
-        # Check user was created and is inactive
         user = User.objects.get(email='newtrainer@example.com')
         assert user.is_active is False
         mock_send_email_task.assert_called_once()

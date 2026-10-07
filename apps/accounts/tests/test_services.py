@@ -77,13 +77,13 @@ class TestCeleryTasks:
 
         result = send_activation_email_task(user.id, domain)
 
-        assert result == "Activation email sent"
+        assert result == "Trainer activation email sent"
         mock_send_mail.assert_called_once()
         args, kwargs = mock_send_mail.call_args
         # Verify email recipient
         assert args[3] == [user.email]
         # Verify subject
-        assert args[0] == 'Aktywuj swoje konto trenera'
+        assert args[0] == 'Aktywuj swoje konto trenera – Coachly'
 
     def test_send_activation_email_task_user_not_found(self):
         """Test that task returns error message if user does not exist."""

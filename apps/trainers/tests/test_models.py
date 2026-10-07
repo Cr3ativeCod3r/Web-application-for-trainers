@@ -19,15 +19,15 @@ class TestTrainerPostModel:
         assert post.slug == "nowy-trening-dla-kazdego"
 
     def test_slug_uniqueness_counter(self):
-        """Test that duplicate titles get unique slugs with numeric suffixes."""
+        """Duplicate titles get unique slugs (django-autoslug numbers duplicates starting at -2)."""
         trainer = TrainerProfileFactory()
         post1 = TrainerPostFactory(trainer=trainer, title="Unikalny tytul")
         post2 = TrainerPostFactory(trainer=trainer, title="Unikalny tytul")
         post3 = TrainerPostFactory(trainer=trainer, title="Unikalny tytul")
 
         assert post1.slug == "unikalny-tytul"
-        assert post2.slug == "unikalny-tytul-1"
-        assert post3.slug == "unikalny-tytul-2"
+        assert post2.slug == "unikalny-tytul-2"
+        assert post3.slug == "unikalny-tytul-3"
 
     def test_string_representation(self):
         """Test the __str__ representation of TrainerPost."""
