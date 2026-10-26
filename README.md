@@ -54,8 +54,6 @@ A marketplace for sports trainers: clients search for trainers by sport, locatio
 | `celery_worker` | E-mails and the outbox relay |
 | `celery_beat` | Periodic outbox relay (safety net) and outbox clean-up |
 
-<img width="6330" height="5054" alt="Architecture diagram" src="https://github.com/user-attachments/assets/ac177999-e970-4a07-9fb6-cf1cd40630a9" />
-
 ### Code layout
 
 ```text
